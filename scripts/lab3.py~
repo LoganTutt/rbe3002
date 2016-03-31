@@ -14,5 +14,5 @@ WHL_RAD = .035 #meter
 
 if __name__ == '__main__':
     
-    rospy.init_node('lab_3_node')
+    rospy.init_node('Ltutt_Lab_2_node')
 
