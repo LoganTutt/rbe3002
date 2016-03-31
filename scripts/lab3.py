@@ -11,7 +11,10 @@ WHL_BASE = .23 #meter
 WHL_RAD = .035 #meter
 
 
+#calculates and returns path to the goal point
+#start and goal should be pose objects
 def aStar(start,goal):
+    pass
 
 
 
@@ -23,30 +26,16 @@ def mapCallback(data_map):
     global robot_map
     pass
 
-#updates odom data of robot
-def odomCallback(odom_data):
-    global pose
-    assert isinstance(pose, Pose)
+def run():
 
-    #store pose data from odometry data
-    pose.position.x = odom_data.pose.pose.position.x
-    pose.position.y = odom_data.pose.pose.position.y
-    
-    quat = odom_data.pose.pose.orientation
-    
-    rotations = [quat.x, quat.y, quat.z, quat.w]
-    roll, pitch, yaw = euler_from_quaternion(rotations)
-    pose.orientation.z = yaw
-
-
-
-if __name__ == '__main__':
-    
     rospy.init_node('lab_3_node')
 
     global pose
     pose = Pose()
 
-    grid_sub = rospy.Subscriber('/slam_gmapping/map',OccupancyGrid,mapCallback, queue_size = 1) 
+    grid_sub = rospy.Subscriber('/map',OccupancyGrid,mapCallback, queue_size = 1) 
 
-    odom_sub = rospy.Subscriber('/odom',Odometry, odomCallback, queue_size = 1)
+
+if __name__ == '__main__':
+    
+
