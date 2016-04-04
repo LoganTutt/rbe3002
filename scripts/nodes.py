@@ -24,7 +24,10 @@ class Node:
        self.calcCost(endPoint)
 
     def calcCost(self, endPoint):
-        self.g_cost = self.prevNode.g_cost+1
+        if(self.prevNode != None):
+            self.g_cost = self.prevNode.g_cost+1
+        else:
+            self.g_cost = 0
         h_cost = abs(self.point.x-endPoint.x) + abs(self.point.y-endPoint.y)
         self.cost = self.g_cost + self.h_cost
 
@@ -37,6 +40,6 @@ class Node:
             tempX = self.point.x+dx[i]
             tempY = self.point.y+dy[i]
             key = str(tempX) + "," + str(tempY)
-            if (not ((key in curNodes) or (world[tempX][tempY]) >= blockedThresh)):
+            if (not ((key in curNodes) or tempX < 0 or tempX >= len(world) or tempY < or tempY>len(world[tempx]) or (world[tempX][tempY]) >= blockedThresh)):
                 newNodes.append(Node(Point(tempX,tempY), self.endPoint, self))
         return newNodes
