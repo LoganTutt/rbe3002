@@ -72,7 +72,7 @@ def aStar(start, goal):
     wayPoints = []
 
     while (not curNode.prevNode == None):
-        if (not curNode.orientation == curNode.prevNode.orientation): wayPoints.insert(0,node2pose(curNode)
+        if (not curNode.orientation == curNode.prevNode.orientation): wayPoints.insert(0,node2pose(curNode))
         curNode = curNode.prevNode
 
     return wayPoints
@@ -123,4 +123,4 @@ def run():
 
 if __name__ == '__main__':
     
-
+    run()
