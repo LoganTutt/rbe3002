@@ -49,6 +49,23 @@ class Node:
             tempX = self.point.x+dx[i]
             tempY = self.point.y+dy[i]
             key = self.point.key()
-            if (not ((key in curNodes) or tempX < 0 or tempX >= len(world) or tempY < 0 or tempY >= len(world[tempX]) or (world[tempX][tempY]) >= blockedThresh)):
+            if (not ((key in curNodes) or tempX < 0 or tempX >= world.width or tempY < 0 or tempY >= world.height or (world.getVal(tempX,tempY)) >= blockedThresh)):
                 newNodes.append(Node(Point(tempX,tempY),theta[i], self.endPoint, self))
         return newNodes
+
+
+
+
+class Grid:
+
+
+    def __init__(self,width,height,data):
+        self.width = width
+        self.height = height
+        self.data = data
+
+    def getVal(self,x,y):
+        return self.data[x+y*self.width]
+
+    def setVal(self,x,y,val):
+        self.data[x+y*self.width] = val
