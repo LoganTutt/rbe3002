@@ -1,7 +1,10 @@
 class Point:
-    def __init__(self, x, y)
+    def __init__(self, x, y):
         self.x = x
         self.y = y
+
+    def key():
+        return str(x) + "," + str(y)
 
 
 
@@ -39,7 +42,7 @@ class Node:
         for i in range(0,4):
             tempX = self.point.x+dx[i]
             tempY = self.point.y+dy[i]
-            key = str(tempX) + "," + str(tempY)
+            key = self.point.key()
             if (not ((key in curNodes) or tempX < 0 or tempX >= len(world) or tempY < or tempY>len(world[tempx]) or (world[tempX][tempY]) >= blockedThresh)):
                 newNodes.append(Node(Point(tempX,tempY), self.endPoint, self))
         return newNodes
