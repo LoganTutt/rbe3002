@@ -15,9 +15,6 @@ WHL_RAD = .035 #meter
 #converts a pose (Pose) to a point (Point) in the world grid
 def pose2point(pose):
 
-    global robot_map
-    global map_info
-
     assert isinstance(pose, Pose)
 
     dX = pose.position.x - map_info[0]
@@ -32,6 +29,7 @@ def pose2point(pose):
 #start and end are poses
 #passes back a list of grid wayPoints to get from star to end
 def aStar(start, goal):
+    global cost_map
 
     # convert from poses to points + init orientation (1,2,3, or 4)
     startPoint = pose2point(start)
@@ -65,6 +63,9 @@ def aStar(start, goal):
             # add the new node to the dictionary of nodes
             nodes[kid.key] = kid
 
+            #add kids' costs to the cost_map
+            cost_map[kid.point.x][kid.point.y] = kid.cost
+
         frontier.remove(curNode)
         curNode = frontier[0]
 
@@ -80,7 +81,6 @@ def aStar(start, goal):
 
 
 def node2pose(node):
-    global map_info
 
     pose = Pose()
 
@@ -104,7 +104,13 @@ def mapCallback(data_map):
     global robot_map
     global map_info
     assert isinstance(data_map,OccupancyGrid)
-    robot_map = data_map.data
+
+    #convert 1D array to 2D array of width and height
+    width = data_map.info.width
+    height = data_map.info.height
+    for i in (range(0,height) * width):
+        robot_map.append(robot_map[1:1+width])
+
     map_info = [data_map.info.origin.position.x, data_map.info.origin.position.y, data_map.info.resolution]
 
 
@@ -115,6 +121,7 @@ def run():
 
     global map_info
     global robot_map
+    global cost_map
     global pose
     pose = Pose()
 
@@ -122,5 +129,4 @@ def run():
 
 
 if __name__ == '__main__':
-    
 
