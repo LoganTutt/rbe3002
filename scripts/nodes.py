@@ -6,6 +6,8 @@ class Point:
     def key(self):
         return str(self.x) + "," + str(self.y)
 
+    def equals(self,compPoint):
+        return self.x == compPoint.y and self.y == compPoint.y
 
 
 
