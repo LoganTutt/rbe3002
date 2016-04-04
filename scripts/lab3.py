@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import rospy, tf, math, nodes
+from nodes import *
 from geometry_msgs.msg import Twist, Pose
 from std_msgs.msg import String
 from nav_msgs.msg import Odometry, OccupancyGrid
@@ -34,9 +35,9 @@ def aStar(start, goal):
     # convert from poses to points + init orientation (1,2,3, or 4)
     startPoint = pose2point(start)
     goalPoint = pose2point(goal)
-    initEuler = euler_from_quaternion(
-        [start.orientation.x, start.orientation.y, start.orientation.z, start.orientation.w])
-    initYaw = initEuler[2]  # returns the yaw
+    quat = [start.orientation.x, start.orientation.y, start.orientation.z, start.orientation.w]
+    roll, pitch, yaw = euler_from_quaternion(quat)
+    initYaw = yaw  # returns the yaw
 
     # convert from euler yaw to 1,2,3,4, as used by node
     initOri = round(initYaw / (math.pi / 2)) + 1
@@ -109,8 +110,6 @@ def mapCallback(data_map):
     global cost_map
 
     assert isinstance(data_map,OccupancyGrid)
-    assert isinstance(robot_map, Grid)
-    assert isinstance(cost_map, Grid)
 
     robot_map = Grid(data_map.info.width, data_map.info.height, data_map.data)
     cost_map = Grid(data_map.info.width, data_map.info.height, [0]*len(data_map.data))
@@ -124,15 +123,21 @@ def mapCallback(data_map):
 #testing for now
 def pathCallback(goalStamped):
 
-    goal = poseSt.pose
+    print "Got Heem"
+    goal = goalStamped.pose
 
     origin = Pose()
     origin.position.x = 0
     origin.position.y = 0
-    origin.orientation.z = quaternion_from_euler(0,0,0)
+    quat = quaternion_from_euler(0,0,0)
+    origin.orientation.x = quat[0]
+    origin.orientation.y = quat[1]
+    origin.orientation.z = quat[2]
+    origin.orientation.w = quat[3]
 
     aStar(origin, goal)
 
+    print "findeh de path"
 
 
 def publishCostMap():
@@ -163,6 +168,7 @@ def run():
     grid_sub = rospy.Subscriber('/map',OccupancyGrid, mapCallback, queue_size = 1)
     costMap_pub = rospy.Publisher('/robot_cost_map',OccupancyGrid, queue_size = 1)
     path_sub = rospy.Subscriber('/rviz_goal', PoseStamped, pathCallback, queue_size=1)
+    rospy.spin()
 
 
 if __name__ == '__main__':

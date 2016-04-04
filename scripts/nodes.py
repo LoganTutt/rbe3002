@@ -20,10 +20,11 @@ class Node:
     cost = -1
 
     #constructor
-    def __init__(self,nodePoint,endPoint,previousNode):
+    def __init__(self,nodePoint,initOri,endPoint,previousNode):
        self.point = nodePoint
        self.prevNode = previousNode
        self.calcCost(endPoint)
+       self.orientation = initOri
 
     def calcCost(self, endPoint):
         if(self.prevNode != None):
