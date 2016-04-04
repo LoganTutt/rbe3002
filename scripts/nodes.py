@@ -36,6 +36,8 @@ class Node:
         h_cost = abs(self.point.x-endPoint.x) + abs(self.point.y-endPoint.y)
         self.cost = self.g_cost + self.h_cost
 
+    def key(self):
+        return self.point.key()
 
     def createNewNodes(self, curNodes, world, blockedThresh):
         dx = [0,1,0,-1]
