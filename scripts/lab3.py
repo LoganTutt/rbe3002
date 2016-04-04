@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 
-import rospy, tf, math
-from node import *
+import rospy, tf, math, nodes
 from geometry_msgs.msg import Twist, Pose
 from std_msgs.msg import String
 from nav_msgs.msg import Odometry, OccupancyGrid
 from geometry_msgs.msg import PoseStamped
-from tf.transformations import euler_from_quaternion
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 WHL_BASE = .23 #meter
 WHL_RAD = .035 #meter
@@ -14,7 +13,7 @@ WHL_RAD = .035 #meter
 
 
 #converts a pose (Pose) to a point (Point) in the world grid
-def poseToPoint(pose):
+def pose2point(pose):
 
     global robot_map
     global map_info
@@ -30,13 +29,73 @@ def poseToPoint(pose):
 
 
 #calculates and returns path to the goal point
-#start and end should be an point representing the grid square
-def aStar(start,goal):
+#start and end are poses
+#passes back a list of grid wayPoints to get from star to end
+def aStar(start, goal):
+
+    # convert from poses to points + init orientation (1,2,3, or 4)
+    startPoint = pose2point(start)
+    goalPoint = pose2point(goal)
+    initEuler = euler_from_quaternion(
+        [start.orientation.x, start.orientation.y, start.orientation.z, start.orientation.w])
+    initYaw = initEuler[2]  # returns the yaw
+
+    # convert from euler yaw to 1,2,3,4, as used by node
+    initOri = round(initYaw / (math.pi / 2)) + 1
+    if initOri <= 0: initOri += 4
+
+
+    #A* here
+    curNode = Node(startPoint, initOri, goalPoint, None)
+    nodes = {curNode.key: curNode}
+    frontier = [curNode]
+
+    #keep searching the frontiers based on the lowest cost
+    while (not curNode.point.equals(goalPoint)):
+        nodeKids = curNode.createNewNodes()
+
+        for kid in nodeKids:
+            # add the nodes to frontier based on cost
+            for ind in range(0,len(frontier)):
+                if (kid.cost < node.cost):
+                    frontier.insert(ind,kid)
+                    break
+                elif (ind == len(frontier) - 1): frontier.append(kid)
+
+            # add the new node to the dictionary of nodes
+            nodes[kid.key] = kid
+
+        frontier.remove(curNode)
+        curNode = frontier[0]
+
+    #order and optimize the waypoints
+    wayPoints = []
+
+    while (not curNode.prevNode == None):
+        if (not curNode.orientation == curNode.prevNode.orientation): wayPoints.insert(0,node2pose(curNode)
+        curNode = curNode.prevNode
+
+    return wayPoints
 
 
 
+def node2pose(node):
+    global map_info
 
+    pose = Pose()
 
+    pose.position.x = node.point.x * map_info[0]
+    pose.position.y = node.point.y * map_info[1]
+
+    # convert to quaternian
+    tempOri = curNode.orientation
+    if (tempOri >= 3): tempOri -= 4
+    tempOri -= 1
+    nodeYaw = tempOri * (math.pi / 2)
+
+    pose.orientation.z = (0,0,nodeYaw)
+
+    return pose
 
 
 

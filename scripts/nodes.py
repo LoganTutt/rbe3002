@@ -12,10 +12,6 @@ class Point:
 
 
 
-
-
-
-
 class Node:
     point = None
     orientation = None
