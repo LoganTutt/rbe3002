@@ -29,12 +29,14 @@ class Node:
         self.cost = self.g_cost + self.h_cost
 
 
-    def createNewNodes(self, curNodes):
+    def createNewNodes(self, curNodes, world, blockedThresh):
         dx = [0,1,0,-1]
         dy = [1,0,-1,0]
         newNodes = []
         for i in range(0,4):
-            key = str(self.point.x+dx[i]) + "," + str(self.point.y+dy[i])
-            if not (key in curNodes): 
-                newNodes.append(Node(Point(point.x+dx[i],point.y+dy[i]), self.endPoint, self))
+            tempX = self.point.x+dx[i]
+            tempY = self.point.y+dy[i]
+            key = str(tempX) + "," + str(tempY)
+            if (not ((key in curNodes) or (world[tempX][tempY]) >= blockedThresh)):
+                newNodes.append(Node(Point(tempX,tempY), self.endPoint, self))
         return newNodes
