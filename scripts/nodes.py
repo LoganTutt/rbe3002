@@ -3,8 +3,8 @@ class Point:
         self.x = x
         self.y = y
 
-    def key():
-        return str(x) + "," + str(y)
+    def key(self):
+        return str(self.x) + "," + str(self.y)
 
 
 
@@ -43,6 +43,6 @@ class Node:
             tempX = self.point.x+dx[i]
             tempY = self.point.y+dy[i]
             key = self.point.key()
-            if (not ((key in curNodes) or tempX < 0 or tempX >= len(world) or tempY < or tempY>len(world[tempx]) or (world[tempX][tempY]) >= blockedThresh)):
+            if (not ((key in curNodes) or tempX < 0 or tempX >= len(world) or tempY < 0 or tempY >= len(world[tempX]) or (world[tempX][tempY]) >= blockedThresh)):
                 newNodes.append(Node(Point(tempX,tempY), self.endPoint, self))
         return newNodes
