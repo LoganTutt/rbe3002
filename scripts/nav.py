@@ -3,8 +3,8 @@
 import rospy, math
 from kobuki_msgs.msg import BumperEvent
 from std_msgs.msg import String
-from geometry_msgs.msg import Twist, Pose
-from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Twist, Pose, PoseWithCovarianceStamped
+from nav_msgs.msg import Odometry, Path
 from geometry_msgs.msg import PoseStamped
 from tf.transformations import euler_from_quaternion
 # Add additional imports for each of the message types used
@@ -21,6 +21,12 @@ def pubTwist(lin_Vel, ang_Vel):
     msg.linear.x = lin_Vel
     msg.angular.z = ang_Vel
     pub.publish(msg)
+
+def pathCallback(path):
+    print "started driving"
+    for p in path.poses:
+        print "naving to pose"
+        navToPose(p)
 
 
 #drive to a goal subscribed as /move_base_simple/goal
@@ -225,6 +231,7 @@ def readBumper(msg):
 #   rospy.Timer(rospy.Duration(.01), timerCallback)
 def timerCallback(event):
     global pose
+    global start_pub
 
     assert isinstance(pose, Pose)
     assert isinstance(event, Odometry)
@@ -235,6 +242,11 @@ def timerCallback(event):
     rot_array = [rot_in_quat.x,rot_in_quat.y,rot_in_quat.z,rot_in_quat.w]
     roll, pitch, yaw = euler_from_quaternion(rot_array)
     pose.orientation.z = yaw
+
+    sendPose = PoseWithCovarianceStamped()
+    sendPose.pose = event.pose
+
+    start_pub.publish(sendPose)
 
 # This is the program's main function
 if __name__ == '__main__':
@@ -249,24 +261,28 @@ if __name__ == '__main__':
     global pose
     global odom_tf
     global odom_list
+    global start_pub
 
     pose = Pose()
 
     pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, None, queue_size=10) # Publisher for commanding robot motion
+    start_pub = rospy.Publisher('/rviz_start',PoseWithCovarianceStamped,queue_size = 1)
     #bumper_sub = rospy.Subscriber('/mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
     odom_sub = rospy.Subscriber('/odom',Odometry,timerCallback,queue_size=1)
     goal_sub = rospy.Subscriber('/this_is_rviz', PoseStamped, navToPose, queue_size=1)
-    
+    path_sub = rospy.Subscriber('/waypoints',Path,pathCallback, queue_size = 1)
+   
+
     # Use this command to make the program wait for some seconds
     rospy.sleep(rospy.Duration(1, 0))
 
 
 
-    print "Starting Lab 2"
+    print "Starting navigation node"
 
     # Make the robot do stuff...
 
-    #rospy.spin()
-    driveArc(.25,.2,math.pi/2)
+    rospy.spin()
+    #driveArc(.25,.2,math.pi/2)
 
-    print "Lab 2 complete!"
+    print "Ended node"
