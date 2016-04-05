@@ -44,7 +44,7 @@ class Node:
             self.g_cost = 0
         #h_cost = abs(self.point.x-endPoint.x) + abs(self.point.y-endPoint.y)
         h_cost = math.sqrt((self.point.x - endPoint.x)**2 + (self.point.y - endPoint.y)**2)
-        self.cost = self.g_cost/4 + h_cost/2
+        self.cost = self.g_cost/2 + h_cost/2
 
     def key(self):
         return self.point.key()
