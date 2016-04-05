@@ -176,6 +176,17 @@ def publishCostMap():
     costGrid.info = map_info
     costGrid.data = cost_map.data
 
+    #map cost_map to between 0 and 127 for fancy colors in rviz
+    maxVal = max(cost_map.data)
+
+    minVal = int('inf')
+    for cost in cost_map.data:
+        if (not (cost == 0) and (cost < minVal)): minVal = cost
+
+    factor = 127/(maxVal - minVal)
+
+    cost_map.data = [((i - minVal) * factor if (i != 0) else 0) for i in cost_map.data]
+
     costMap_pub.publish(costGrid)
 
 
