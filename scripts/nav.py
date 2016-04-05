@@ -7,6 +7,7 @@ from geometry_msgs.msg import Twist, Pose, PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry, Path
 from geometry_msgs.msg import PoseStamped
 from tf.transformations import euler_from_quaternion
+from CalcPath.srv import *
 # Add additional imports for each of the message types used
 
 #Turtlebot Dimension Constants
@@ -22,7 +23,8 @@ def pubTwist(lin_Vel, ang_Vel):
     msg.angular.z = ang_Vel
     pub.publish(msg)
 
-def pathCallback(path):
+def navToPose(goal):
+    path = getPath(pose, goal.pose)
     print "started driving"
     for p in path.poses:
         print "naving to pose"
@@ -30,7 +32,7 @@ def pathCallback(path):
 
 
 #drive to a goal subscribed as /move_base_simple/goal
-def navToPose(goal):
+def goToPose(goal):
     print "starting navigation!"
 
     #get current pose and orientation
@@ -263,16 +265,18 @@ if __name__ == '__main__':
     global odom_tf
     global odom_list
     global start_pub
+    global getPath
 
     pose = Pose()
 
     pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, None, queue_size=10) # Publisher for commanding robot motion
-    start_pub = rospy.Publisher('/rviz_start',PoseWithCovarianceStamped,queue_size = 1)
+    #start_pub = rospy.Publisher('/rviz_start',PoseWithCovarianceStamped,queue_size = 1)
     #bumper_sub = rospy.Subscriber('/mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
     odom_sub = rospy.Subscriber('/odom',Odometry,timerCallback,queue_size=1)
     goal_sub = rospy.Subscriber('/this_is_rviz', PoseStamped, navToPose, queue_size=1)
-    path_sub = rospy.Subscriber('/waypoints',Path,pathCallback, queue_size = 1)
+    #path_sub = rospy.Subscriber('/waypoints',Path,pathCallback, queue_size = 1)
    
+    getPath = rospy.ServiceProxy('astar', CalcPath)
 
     # Use this command to make the program wait for some seconds
     rospy.sleep(rospy.Duration(1, 0))

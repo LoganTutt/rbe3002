@@ -87,6 +87,7 @@ def aStar(start, goal):
     ways.cell_width = map_info.resolution
     ways.header.frame_id = 'map'
     ways.header.stamp = rospy.get_rostime()
+    wayPoints.append(node2pose(curNode))
 
     while (not curNode.prevNode == None):
         if (not curNode.orientation == curNode.prevNode.orientation):
@@ -172,10 +173,11 @@ def pathCallback(goalStamped):
         way.poses.append(tempPoseSt)
 
     waypoints_pub.publish(way)
+    return way
 
     print "findeh de path"
 
-#startPose is a PoseStamped
+#startPose is a PoseWithCovarianceStamped
 def startCallback(startPose):
     global start_pose
 
@@ -219,6 +221,19 @@ def publishCostMap():
     # print max(costGrid.data)
     costMap_pub.publish(costGrid)
 
+def calcPath(req):
+    start = PoseWithCovarianceStamped()
+    start.pose.pose = req.start
+    startCallback(start)
+
+    goal = PoseStamped()
+    goal.pose = req.goal
+    path = pathCallback(goal)
+
+    CalcPathResponse(path)
+
+
+    
 
 
 def run():
@@ -243,8 +258,8 @@ def run():
 
     #subscribers
     grid_sub = rospy.Subscriber('/map',OccupancyGrid, mapCallback, queue_size = 1)
-    goal_sub = rospy.Subscriber('/rviz_goal', PoseStamped, pathCallback, queue_size=1)
-    start_sub = rospy.Subscriber('/rviz_start', PoseWithCovarianceStamped, startCallback, queue_size=1)
+    #goal_sub = rospy.Subscriber('/rviz_goal', PoseStamped, pathCallback, queue_size=1)
+    #start_sub = rospy.Subscriber('/rviz_start', PoseWithCovarianceStamped, startCallback, queue_size=1)
 
     #publishers
     startPose_pub = rospy.Publisher('/robot_start', PoseStamped, queue_size=1)
@@ -253,6 +268,9 @@ def run():
     way_pub = rospy.Publisher('/robot_waypoints', GridCells, queue_size=1)
     waypoints_pub = rospy.Publisher('/waypoints', Path, queue_size=1)
 
+    serv = rospy.Service('astar',CalcPath, calcPath)
+
+    cost_map = None
     rospy.sleep(1)
     print "Ready"
 
