@@ -244,7 +244,8 @@ def timerCallback(event):
     pose.orientation.z = yaw
 
     sendPose = PoseWithCovarianceStamped()
-    sendPose.pose = event.pose
+    sendPose.header.frame_id = 'map'  
+    sendPose.pose.pose = event.pose.pose
 
     start_pub.publish(sendPose)
 

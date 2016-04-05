@@ -114,8 +114,8 @@ def node2pose(node):
 
     pose = Pose()
 
-    pose.position.x = node.point.x * map_conversion[0]
-    pose.position.y = node.point.y * map_conversion[1]
+    pose.position.x = (node.point.x * map_conversion[2])+map_conversion[0]
+    pose.position.y = (node.point.y * map_conversion[2])+map_conversion[1]
 
     # convert to quaternian
     tempOri = node.orientation
@@ -178,7 +178,6 @@ def pathCallback(goalStamped):
 #startPose is a PoseStamped
 def startCallback(startPose):
     global start_pose
-    print "set start"
 
     start_pose = startPose.pose.pose #get the pose from the stamped pose
 
@@ -237,6 +236,7 @@ def run():
     global startPose_pub
     global costMap_pub
     global path_pub
+    global waypoints_pub
     global way_pub
 
     pose = Pose()
