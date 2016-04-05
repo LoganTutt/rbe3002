@@ -4,8 +4,9 @@ import rospy, tf, math, nodes
 from nodes import *
 from geometry_msgs.msg import Twist, Pose
 from std_msgs.msg import String
-from nav_msgs.msg import Odometry, OccupancyGrid
+from nav_msgs.msg import Odometry, OccupancyGrid, GridCells, Path
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
+from geometry_msgs.msg import Point as ROSPoint
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 WHL_BASE = .23 #meter
@@ -66,19 +67,29 @@ def aStar(start, goal):
             #add kids' costs to the cost_map
             cost_map.setVal(kid.point.x, kid.point.y, int(kid.cost))
 
-        publishCostMap()
         frontier.remove(curNode)
         curNode = frontier[0]
-        print str(curNode.point.x)+","+str(curNode.point.y)+" : "+str(goalPoint.x)+","+str(goalPoint.y)
-
 
     #order and optimize the waypoints
     wayPoints = []
+    path = GridCells()
+
+    path.cell_height = map_info.resolution
+    path.cell_width = map_info.resolution
+    path.header.frame_id = 'map'
+    path.header.stamp = rospy.get_rostime()
 
     while (not curNode.prevNode == None):
-        if (not curNode.orientation == curNode.prevNode.orientation): wayPoints.insert(0,node2pose(curNode))
+        if (not curNode.orientation == curNode.prevNode.orientation):
+            wayPoints.insert(0,node2pose(curNode))
+        rosPoint = ROSPoint()
+        rosPoint.x = curNode.point.x * path.cell_width + map_info.origin.position.x
+        rosPoint.y = curNode.point.y * path.cell_height + map_info.origin.position.y
+        rosPoint.z = 0.0
+        path.cells.append(rosPoint)
         curNode = curNode.prevNode
 
+    path_pub.publish(path)
     return wayPoints
 
 
@@ -96,13 +107,18 @@ def node2pose(node):
     tempOri -= 1
     nodeYaw = tempOri * (math.pi / 2)
 
-    pose.orientation.z = quaternion_from_euler(0, 0, nodeYaw)
+    quat = quaternion_from_euler(0, 0, nodeYaw)
+
+    pose.orientation.x = quat[0]
+    pose.orientation.y = quat[1]
+    pose.orientation.z = quat[2]
+    pose.orientation.w = quat[3]
 
     return pose
 
 
 
-#updates map 
+#subscriber callbacks
 def mapCallback(data_map):
     global robot_map
     global map_info
@@ -118,16 +134,25 @@ def mapCallback(data_map):
 
     map_conversion = [data_map.info.origin.position.x, data_map.info.origin.position.y, data_map.info.resolution]
 
-
-
-#testing for now
 def pathCallback(goalStamped):
+    global cost_map
 
     print "Got Heem"
+
+    cost_map = Grid(cost_map.width, cost_map.height, [0]*len(cost_map.data))
+
     goal = goalStamped.pose
 
+    dao = aStar(start_pose, goal)       #dao = way in Chinese
 
-    aStar(start_pose, goal)
+    way = Path()
+    way.header = goalStamped.header
+    for waypoint in dao:
+        tempPoseSt = PoseStamped()
+        tempPoseSt.pose = waypoint
+        way.poses.append(tempPoseSt)
+
+    way_pub.publish(way)
 
     print "findeh de path"
 
@@ -136,6 +161,12 @@ def startCallback(startPose):
     print "set start"
 
     start_pose = startPose.pose.pose
+
+    start_stamped_pose = PoseStamped()
+    start_stamped_pose.pose = start_pose
+    start_stamped_pose.header = startPose.header
+    startPose_pub.publish(start_stamped_pose)
+
 
 def publishCostMap():
 
@@ -157,17 +188,28 @@ def run():
     global map_info
     global robot_map
     global cost_map
-    global costMap_pub
     global pose
     global start_pose
+
+    global startPose_pub
+    global costMap_pub
+    global path_pub
+    global way_pub
 
     pose = Pose()
 
     grid_sub = rospy.Subscriber('/map',OccupancyGrid, mapCallback, queue_size = 1)
-    costMap_pub = rospy.Publisher('/robot_cost_map',OccupancyGrid, queue_size = 1)
-    path_sub = rospy.Subscriber('/rviz_goal', PoseStamped, pathCallback, queue_size=1)
+    goal_sub = rospy.Subscriber('/rviz_goal', PoseStamped, pathCallback, queue_size=1)
     start_sub = rospy.Subscriber('/rviz_start', PoseWithCovarianceStamped, startCallback, queue_size=1)
-    rospy.spin()
+    startPose_pub = rospy.Publisher('/robot_start', PoseStamped, queue_size=1)
+    costMap_pub = rospy.Publisher('/robot_cost_map', OccupancyGrid, queue_size=1)
+    path_pub = rospy.Publisher('/robot_path', GridCells, queue_size=1)
+    way_pub = rospy.Publisher('/robot_waypoints', Path, queue_size=1)
+
+    while not rospy.is_shutdown():
+        if (cost_map != None):
+            publishCostMap()
+        rospy.sleep(.25)
 
 
 if __name__ == '__main__':
