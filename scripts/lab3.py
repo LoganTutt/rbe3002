@@ -76,11 +76,13 @@ def aStar(start, goal):
     path = GridCells()
     ways = GridCells()
 
+    #path is a GridCells, and is used to display the path in rviz
     path.cell_height = map_info.resolution
     path.cell_width = map_info.resolution
     path.header.frame_id = 'map'
     path.header.stamp = rospy.get_rostime()
 
+    # ways is a GridCells, and is used to display the waypoints in rviz
     ways.cell_height = map_info.resolution
     ways.cell_width = map_info.resolution
     ways.header.frame_id = 'map'
@@ -92,12 +94,12 @@ def aStar(start, goal):
             temp = ROSPoint()
             temp.x = curNode.prevNode.point.x * path.cell_width + map_info.origin.position.x
             temp.y = curNode.prevNode.point.y * path.cell_height + map_info.origin.position.y
-            temp.z = path.cell_height * .25
+            temp.z = path.cell_height * .25 #offset above costmap
             ways.cells.append(temp)
         rosPoint = ROSPoint()
         rosPoint.x = curNode.point.x * path.cell_width + map_info.origin.position.x
         rosPoint.y = curNode.point.y * path.cell_height + map_info.origin.position.y
-        rosPoint.z = path.cell_height * .125
+        rosPoint.z = path.cell_height * .125 #offset above path
         path.cells.append(rosPoint)
         curNode = curNode.prevNode
 
@@ -120,7 +122,6 @@ def node2pose(node):
     if (tempOri >= 3): tempOri -= 4
     tempOri -= 1
     nodeYaw = tempOri * (math.pi / 2)
-
     quat = quaternion_from_euler(0, 0, nodeYaw)
 
     pose.orientation.x = quat[0]
@@ -133,6 +134,8 @@ def node2pose(node):
 
 
 #subscriber callbacks
+
+#data_map is an OccupancyGrid
 def mapCallback(data_map):
     global robot_map
     global map_info
@@ -148,14 +151,15 @@ def mapCallback(data_map):
 
     map_conversion = [data_map.info.origin.position.x, data_map.info.origin.position.y, data_map.info.resolution]
 
+#goalStamped is a PoseStamped
 def pathCallback(goalStamped):
     global cost_map
 
-    print "Got Heem"
+    print "Got start and goal poses"
 
     cost_map = Grid(cost_map.width, cost_map.height, [0]*len(cost_map.data))
 
-    goal = goalStamped.pose
+    goal = goalStamped.pose #get the pose from the stamped pose
 
     dao = aStar(start_pose, goal)       #dao = way in Chinese
 
@@ -171,11 +175,12 @@ def pathCallback(goalStamped):
 
     print "findeh de path"
 
+#startPose is a PoseStamped
 def startCallback(startPose):
     global start_pose
     print "set start"
 
-    start_pose = startPose.pose.pose
+    start_pose = startPose.pose.pose #get the pose from the stamped pose
 
     start_stamped_pose = PoseStamped()
     start_stamped_pose.pose = start_pose
@@ -183,6 +188,7 @@ def startCallback(startPose):
     startPose_pub.publish(start_stamped_pose)
 
 
+#publishes the cost_map
 def publishCostMap():
     global cost_map
     costGrid = OccupancyGrid()
@@ -190,7 +196,8 @@ def publishCostMap():
 
     costGrid.header.frame_id = 'map'
     costGrid.info = map_info
-    temparr = copy.deepcopy(cost_map.data)
+    temparr = copy.deepcopy(cost_map.data) #protect ourselves from volitility
+
     #map cost_map to between 0 and 127 for fancy colors in rviz
     maxVal = max(temparr)
 
@@ -226,6 +233,7 @@ def run():
     global pose
     global start_pose
 
+    #make publishers global so that they can be used anywhere
     global startPose_pub
     global costMap_pub
     global path_pub
@@ -233,9 +241,12 @@ def run():
 
     pose = Pose()
 
+    #subscribers
     grid_sub = rospy.Subscriber('/map',OccupancyGrid, mapCallback, queue_size = 1)
     goal_sub = rospy.Subscriber('/rviz_goal', PoseStamped, pathCallback, queue_size=1)
     start_sub = rospy.Subscriber('/rviz_start', PoseWithCovarianceStamped, startCallback, queue_size=1)
+
+    #publishers
     startPose_pub = rospy.Publisher('/robot_start', PoseStamped, queue_size=1)
     costMap_pub = rospy.Publisher('/robot_cost_map', OccupancyGrid, queue_size=1)
     path_pub = rospy.Publisher('/robot_path', GridCells, queue_size=1)
@@ -244,6 +255,7 @@ def run():
     rospy.sleep(1)
     print "Ready"
 
+    #this handles updating the cost_map
     while not rospy.is_shutdown():
         if (cost_map != None):
             publishCostMap()
