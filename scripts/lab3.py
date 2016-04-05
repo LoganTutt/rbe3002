@@ -2,6 +2,7 @@
 
 import rospy, tf, math, nodes, copy
 from nodes import *
+from nav import navToPose
 from geometry_msgs.msg import Twist, Pose
 from std_msgs.msg import String
 from nav_msgs.msg import Odometry, OccupancyGrid, GridCells
@@ -80,7 +81,6 @@ def aStar(start, goal):
     path.header.frame_id = 'map'
     path.header.stamp = rospy.get_rostime()
 
-
     ways.cell_height = map_info.resolution
     ways.cell_width = map_info.resolution
     ways.header.frame_id = 'map'
@@ -90,19 +90,20 @@ def aStar(start, goal):
         if (not curNode.orientation == curNode.prevNode.orientation):
             wayPoints.insert(0,node2pose(curNode))
             temp = ROSPoint()
-            temp.x = curNode.point.x * path.cell_width + map_info.origin.position.x
-            temp.y = curNode.point.y * path.cell_height + map_info.origin.position.y
-            temp.z = 0.0
+            temp.x = curNode.prevNode.point.x * path.cell_width + map_info.origin.position.x
+            temp.y = curNode.prevNode.point.y * path.cell_height + map_info.origin.position.y
+            temp.z = path.cell_height * .25
             ways.cells.append(temp)
         rosPoint = ROSPoint()
         rosPoint.x = curNode.point.x * path.cell_width + map_info.origin.position.x
         rosPoint.y = curNode.point.y * path.cell_height + map_info.origin.position.y
-        rosPoint.z = 0.0
+        rosPoint.z = path.cell_height * .125
         path.cells.append(rosPoint)
         curNode = curNode.prevNode
 
     path_pub.publish(path)
     way_pub.publish(ways)
+
     return wayPoints
 
 
@@ -241,11 +242,12 @@ def run():
     way_pub = rospy.Publisher('/robot_waypoints', GridCells, queue_size=1)
 
     rospy.sleep(1)
+    print "Ready"
 
     while not rospy.is_shutdown():
         if (cost_map != None):
             publishCostMap()
-        rospy.sleep(.05)
+        rospy.sleep(.125)
 
 
 if __name__ == '__main__':
