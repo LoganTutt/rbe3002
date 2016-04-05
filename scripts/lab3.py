@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import rospy, tf, math, nodes
+import rospy, tf, math, nodes, copy
 from nodes import *
 from geometry_msgs.msg import Twist, Pose
 from std_msgs.msg import String
@@ -169,24 +169,33 @@ def startCallback(startPose):
 
 
 def publishCostMap():
-
+    global cost_map
     costGrid = OccupancyGrid()
+
 
     costGrid.header.frame_id = 'map'
     costGrid.info = map_info
-    costGrid.data = cost_map.data
-
+    temparr = copy.deepcopy(cost_map.data)
     #map cost_map to between 0 and 127 for fancy colors in rviz
-    maxVal = max(cost_map.data)
+    maxVal = max(temparr)
 
-    minVal = int('inf')
-    for cost in cost_map.data:
+    minVal = float('inf')
+    for cost in temparr:
         if (not (cost == 0) and (cost < minVal)): minVal = cost
 
-    factor = 127/(maxVal - minVal)
+    factor = 100.0/(maxVal - minVal)
 
-    cost_map.data = [((i - minVal) * factor if (i != 0) else 0) for i in cost_map.data]
+    if(maxVal == minVal): return
 
+    # costGrid.data = [(int((i - minVal) * factor) if (i != 0) else 0) for i in cost_map.data]
+    costGrid.data = []
+    for i in temparr:
+        if(i!=0):
+            costGrid.data.append(int((i - minVal) * factor))
+        else:
+            costGrid.data.append(0)
+
+    # print max(costGrid.data)
     costMap_pub.publish(costGrid)
 
 
@@ -217,10 +226,12 @@ def run():
     path_pub = rospy.Publisher('/robot_path', GridCells, queue_size=1)
     way_pub = rospy.Publisher('/robot_waypoints', Path, queue_size=1)
 
+    rospy.sleep(1)
+
     while not rospy.is_shutdown():
         if (cost_map != None):
             publishCostMap()
-        rospy.sleep(.25)
+        rospy.sleep(.05)
 
 
 if __name__ == '__main__':
