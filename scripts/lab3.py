@@ -5,7 +5,7 @@ from nodes import *
 from nav import navToPose
 from geometry_msgs.msg import Twist, Pose
 from std_msgs.msg import String
-from nav_msgs.msg import Odometry, OccupancyGrid, GridCells
+from nav_msgs.msg import Odometry, OccupancyGrid, GridCells, Path
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from geometry_msgs.msg import Point as ROSPoint
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
@@ -163,15 +163,15 @@ def pathCallback(goalStamped):
 
     dao = aStar(start_pose, goal)       #dao = way in Chinese
 
-    #way = Path()
-    #way.header = goalStamped.header
-    #for waypoint in dao:
-        #tempPoseSt = PoseStamped()
-        #tempPoseSt.header = goalStamped.header
-        #tempPoseSt.pose = waypoint
-        #way.poses.append(tempPoseSt)
+    way = Path()
+    way.header = goalStamped.header
+    for waypoint in dao:
+        tempPoseSt = PoseStamped()
+        tempPoseSt.header = goalStamped.header
+        tempPoseSt.pose = waypoint
+        way.poses.append(tempPoseSt)
 
-    #way_pub.publish(way)
+    waypoints_pub.publish(way)
 
     print "findeh de path"
 
@@ -251,6 +251,7 @@ def run():
     costMap_pub = rospy.Publisher('/robot_cost_map', OccupancyGrid, queue_size=1)
     path_pub = rospy.Publisher('/robot_path', GridCells, queue_size=1)
     way_pub = rospy.Publisher('/robot_waypoints', GridCells, queue_size=1)
+    waypoints_pub = rospy.Publisher('/waypoints', Path, queue_size=1)
 
     rospy.sleep(1)
     print "Ready"
