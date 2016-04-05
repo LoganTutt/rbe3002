@@ -1,3 +1,6 @@
+import math
+
+
 class Point:
     def __init__(self, x, y):
         self.x = x
@@ -7,7 +10,7 @@ class Point:
         return str(self.x) + "," + str(self.y)
 
     def equals(self,compPoint):
-        return self.x == compPoint.y and self.y == compPoint.y
+        return self.x == compPoint.x and self.y == compPoint.y
 
 
 
@@ -18,13 +21,17 @@ class Node:
     prevNode = None
     g_cost = -1
     cost = -1
+    endPoint = None
 
     #constructor
     def __init__(self,nodePoint,initOri,endPoint,previousNode):
        self.point = nodePoint
        self.prevNode = previousNode
-       self.calcCost(endPoint)
        self.orientation = initOri
+       self.endPoint = endPoint
+       self.calcCost(endPoint)
+
+
 
     def calcCost(self, endPoint):
         if(self.prevNode != None):
@@ -35,8 +42,9 @@ class Node:
 
         else:
             self.g_cost = 0
-        h_cost = abs(self.point.x-endPoint.x) + abs(self.point.y-endPoint.y)
-        self.cost = self.g_cost + self.h_cost
+        #h_cost = abs(self.point.x-endPoint.x) + abs(self.point.y-endPoint.y)
+        h_cost = math.sqrt((self.point.x - endPoint.x)**2 + (self.point.y - endPoint.y)**2)
+        self.cost = self.g_cost/4 + h_cost/2
 
     def key(self):
         return self.point.key()
@@ -49,8 +57,10 @@ class Node:
         for i in range(0,4):
             tempX = self.point.x+dx[i]
             tempY = self.point.y+dy[i]
-            key = self.point.key()
+            key = str(tempX)+","+str(tempY)
+            #print key
             if (not ((key in curNodes) or tempX < 0 or tempX >= world.width or tempY < 0 or tempY >= world.height or (world.getVal(tempX,tempY)) >= blockedThresh)):
+                #print "added node"
                 newNodes.append(Node(Point(tempX,tempY),theta[i], self.endPoint, self))
         return newNodes
 

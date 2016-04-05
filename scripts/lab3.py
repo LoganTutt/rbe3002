@@ -5,7 +5,7 @@ from nodes import *
 from geometry_msgs.msg import Twist, Pose
 from std_msgs.msg import String
 from nav_msgs.msg import Odometry, OccupancyGrid
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 WHL_BASE = .23 #meter
@@ -52,11 +52,10 @@ def aStar(start, goal):
     #keep searching the frontiers based on the lowest cost
     while (not curNode.point.equals(goalPoint)):
         nodeKids = curNode.createNewNodes(nodes, robot_map, 50)
-
         for kid in nodeKids:
             # add the nodes to frontier based on cost
             for ind in range(0,len(frontier)):
-                if (kid.cost < node.cost):
+                if (kid.cost < frontier[ind].cost):
                     frontier.insert(ind,kid)
                     break
                 elif (ind == len(frontier) - 1): frontier.append(kid)
@@ -65,12 +64,13 @@ def aStar(start, goal):
             nodes[kid.key()] = kid
 
             #add kids' costs to the cost_map
-            cost_map.setVal(kid.point.x, kid.point.y, kid.cost)
+            cost_map.setVal(kid.point.x, kid.point.y, int(kid.cost))
 
         publishCostMap()
-
         frontier.remove(curNode)
         curNode = frontier[0]
+        print str(curNode.point.x)+","+str(curNode.point.y)+" : "+str(goalPoint.x)+","+str(goalPoint.y)
+
 
     #order and optimize the waypoints
     wayPoints = []
@@ -91,7 +91,7 @@ def node2pose(node):
     pose.position.y = node.point.y * map_conversion[1]
 
     # convert to quaternian
-    tempOri = curNode.orientation
+    tempOri = node.orientation
     if (tempOri >= 3): tempOri -= 4
     tempOri -= 1
     nodeYaw = tempOri * (math.pi / 2)
@@ -114,7 +114,7 @@ def mapCallback(data_map):
     robot_map = Grid(data_map.info.width, data_map.info.height, data_map.data)
     cost_map = Grid(data_map.info.width, data_map.info.height, [0]*len(data_map.data))
 
-    map_info = data_map
+    map_info = data_map.info
 
     map_conversion = [data_map.info.origin.position.x, data_map.info.origin.position.y, data_map.info.resolution]
 
@@ -126,19 +126,16 @@ def pathCallback(goalStamped):
     print "Got Heem"
     goal = goalStamped.pose
 
-    origin = Pose()
-    origin.position.x = 0
-    origin.position.y = 0
-    quat = quaternion_from_euler(0,0,0)
-    origin.orientation.x = quat[0]
-    origin.orientation.y = quat[1]
-    origin.orientation.z = quat[2]
-    origin.orientation.w = quat[3]
 
-    aStar(origin, goal)
+    aStar(start_pose, goal)
 
     print "findeh de path"
 
+def startCallback(startPose):
+    global start_pose
+    print "set start"
+
+    start_pose = startPose.pose.pose
 
 def publishCostMap():
 
@@ -162,12 +159,14 @@ def run():
     global cost_map
     global costMap_pub
     global pose
+    global start_pose
 
     pose = Pose()
 
     grid_sub = rospy.Subscriber('/map',OccupancyGrid, mapCallback, queue_size = 1)
     costMap_pub = rospy.Publisher('/robot_cost_map',OccupancyGrid, queue_size = 1)
     path_sub = rospy.Subscriber('/rviz_goal', PoseStamped, pathCallback, queue_size=1)
+    start_sub = rospy.Subscriber('/rviz_start', PoseWithCovarianceStamped, startCallback, queue_size=1)
     rospy.spin()
 
 
