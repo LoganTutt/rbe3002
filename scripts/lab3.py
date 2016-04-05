@@ -4,7 +4,7 @@ import rospy, tf, math, nodes, copy
 from nodes import *
 from geometry_msgs.msg import Twist, Pose
 from std_msgs.msg import String
-from nav_msgs.msg import Odometry, OccupancyGrid, GridCells, Path
+from nav_msgs.msg import Odometry, OccupancyGrid, GridCells
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from geometry_msgs.msg import Point as ROSPoint
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
@@ -73,15 +73,27 @@ def aStar(start, goal):
     #order and optimize the waypoints
     wayPoints = []
     path = GridCells()
+    ways = GridCells()
 
     path.cell_height = map_info.resolution
     path.cell_width = map_info.resolution
     path.header.frame_id = 'map'
     path.header.stamp = rospy.get_rostime()
 
+
+    ways.cell_height = map_info.resolution
+    ways.cell_width = map_info.resolution
+    ways.header.frame_id = 'map'
+    ways.header.stamp = rospy.get_rostime()
+
     while (not curNode.prevNode == None):
         if (not curNode.orientation == curNode.prevNode.orientation):
             wayPoints.insert(0,node2pose(curNode))
+            temp = ROSPoint()
+            temp.x = curNode.point.x * path.cell_width + map_info.origin.position.x
+            temp.y = curNode.point.y * path.cell_height + map_info.origin.position.y
+            temp.z = 0.0
+            ways.cells.append(temp)
         rosPoint = ROSPoint()
         rosPoint.x = curNode.point.x * path.cell_width + map_info.origin.position.x
         rosPoint.y = curNode.point.y * path.cell_height + map_info.origin.position.y
@@ -90,6 +102,7 @@ def aStar(start, goal):
         curNode = curNode.prevNode
 
     path_pub.publish(path)
+    way_pub.publish(ways)
     return wayPoints
 
 
@@ -145,14 +158,15 @@ def pathCallback(goalStamped):
 
     dao = aStar(start_pose, goal)       #dao = way in Chinese
 
-    way = Path()
-    way.header = goalStamped.header
-    for waypoint in dao:
-        tempPoseSt = PoseStamped()
-        tempPoseSt.pose = waypoint
-        way.poses.append(tempPoseSt)
+    #way = Path()
+    #way.header = goalStamped.header
+    #for waypoint in dao:
+        #tempPoseSt = PoseStamped()
+        #tempPoseSt.header = goalStamped.header
+        #tempPoseSt.pose = waypoint
+        #way.poses.append(tempPoseSt)
 
-    way_pub.publish(way)
+    #way_pub.publish(way)
 
     print "findeh de path"
 
@@ -224,7 +238,7 @@ def run():
     startPose_pub = rospy.Publisher('/robot_start', PoseStamped, queue_size=1)
     costMap_pub = rospy.Publisher('/robot_cost_map', OccupancyGrid, queue_size=1)
     path_pub = rospy.Publisher('/robot_path', GridCells, queue_size=1)
-    way_pub = rospy.Publisher('/robot_waypoints', Path, queue_size=1)
+    way_pub = rospy.Publisher('/robot_waypoints', GridCells, queue_size=1)
 
     rospy.sleep(1)
 
