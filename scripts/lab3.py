@@ -11,8 +11,6 @@ from geometry_msgs.msg import Point as ROSPoint
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from rbe3002.srv import *
 
-WHL_BASE = .23 #meter
-WHL_RAD = .035 #meter
 
 
 
@@ -31,7 +29,7 @@ def pose2point(pose):
 
 #calculates and returns path to the goal point
 #start and end are poses
-#passes back a list of grid wayPoints to get from star to end
+#passes back a list of Pose wayPoints to get from star to end
 def aStar(start, goal):
     global cost_map
 
@@ -52,9 +50,9 @@ def aStar(start, goal):
     nodes = {curNode.key: curNode}
     frontier = [curNode]
 
-    #keep searching the frontiers based on the lowest cost
+    #keep searching the frontiers based on the lowest cost until goal is reached
     while (not curNode.point.equals(goalPoint)):
-        nodeKids = curNode.createNewNodes(nodes, robot_map, 50)
+        nodeKids = curNode.createNewNodes(nodes, robot_map, 50) #create new nodes that are neighbors to current node
         for kid in nodeKids:
             # add the nodes to frontier based on cost
             for ind in range(0,len(frontier)):
@@ -70,7 +68,7 @@ def aStar(start, goal):
             cost_map.setVal(kid.point.x, kid.point.y, int(kid.cost))
 
         frontier.remove(curNode)
-        curNode = frontier[0]
+        curNode = frontier[0] #curNode becomes the frontier node with the lowest cost
 
     #order and optimize the waypoints
     wayPoints = []
@@ -90,6 +88,7 @@ def aStar(start, goal):
     ways.header.stamp = rospy.get_rostime()
     wayPoints.append(node2pose(curNode))
 
+    #generates waypoints at each rotation location
     while (not curNode.prevNode == None):
         if (not curNode.orientation == curNode.prevNode.orientation):
             wayPoints.insert(0,node2pose(curNode))
@@ -111,7 +110,7 @@ def aStar(start, goal):
     return wayPoints
 
 
-
+#converts a node object to a Pose object for use in a path
 def node2pose(node):
 
     pose = Pose()
@@ -138,6 +137,7 @@ def node2pose(node):
 #subscriber callbacks
 
 #data_map is an OccupancyGrid
+#stores the incoming map and other useful information
 def mapCallback(data_map):
     global robot_map
     global map_info
@@ -155,6 +155,7 @@ def mapCallback(data_map):
     map_conversion = [data_map.info.origin.position.x, data_map.info.origin.position.y, data_map.info.resolution]
 
 #goalStamped is a PoseStamped
+#finds the path to goalStamped and returns the waypoints to reach there
 def pathCallback(goalStamped):
     global cost_map
 
@@ -181,6 +182,7 @@ def pathCallback(goalStamped):
     print "findeh de path"
 
 #startPose is a PoseWithCovarianceStamped
+#stores the start pose of for path planning and prints the location for rviz
 def startCallback(startPose):
     global start_pose
 
@@ -221,9 +223,9 @@ def publishCostMap():
         else:
             costGrid.data.append(0)
 
-    # print max(costGrid.data)
     costMap_pub.publish(costGrid)
 
+#service handler. Takes in a start and end pose then returns a path
 def calcPath(req):
     start = PoseWithCovarianceStamped()
     start.pose.pose = req.start

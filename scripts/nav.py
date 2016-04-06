@@ -23,16 +23,21 @@ def pubTwist(lin_Vel, ang_Vel):
     msg.angular.z = ang_Vel
     pub.publish(msg)
 
+#callback from rviz nav goal
+#creates a path and uses that path to move to the location
 def navToPose(goal):
+    #get path from A*
     astar = getPath(pose, goal.pose)
-    print "started driving"
     path = astar.path
+    print "started driving"
+
+    #drive to each waypoint in the path
     for p in path.poses:
         print "naving to pose"
         goToPose(p)
 
 
-#drive to a goal subscribed as /move_base_simple/goal
+#drives to the pose of goal
 def goToPose(goal):
     print "starting navigation!"
 
@@ -276,7 +281,6 @@ if __name__ == '__main__':
     #bumper_sub = rospy.Subscriber('/mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
     odom_sub = rospy.Subscriber('/odom',Odometry,timerCallback,queue_size=1)
     goal_sub = rospy.Subscriber('/this_is_rviz', PoseStamped, navToPose, queue_size=1)
-    #path_sub = rospy.Subscriber('/waypoints',Path,pathCallback, queue_size = 1)
    
     getPath = rospy.ServiceProxy('astar', CalcPath)
 
@@ -287,9 +291,7 @@ if __name__ == '__main__':
 
     print "Starting navigation node"
 
-    # Make the robot do stuff...
 
     rospy.spin()
-    #driveArc(.25,.2,math.pi/2)
 
     print "Ended node"
