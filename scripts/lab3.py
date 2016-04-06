@@ -9,6 +9,7 @@ from nav_msgs.msg import Odometry, OccupancyGrid, GridCells, Path
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from geometry_msgs.msg import Point as ROSPoint
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
+from rbe3002.srv import *
 
 WHL_BASE = .23 #meter
 WHL_RAD = .035 #meter
@@ -145,6 +146,7 @@ def mapCallback(data_map):
 
     assert isinstance(data_map,OccupancyGrid)
 
+    print "recieved map"
     robot_map = Grid(data_map.info.width, data_map.info.height, data_map.data)
     cost_map = Grid(data_map.info.width, data_map.info.height, [0]*len(data_map.data))
 
@@ -157,6 +159,7 @@ def pathCallback(goalStamped):
     global cost_map
 
     print "Got start and goal poses"
+
 
     cost_map = Grid(cost_map.width, cost_map.height, [0]*len(cost_map.data))
 
@@ -227,10 +230,10 @@ def calcPath(req):
     startCallback(start)
 
     goal = PoseStamped()
-    goal.pose = req.goal
+    goal.pose = req.end
     path = pathCallback(goal)
 
-    CalcPathResponse(path)
+    return CalcPathResponse(path)
 
 
     
@@ -255,6 +258,8 @@ def run():
     global way_pub
 
     pose = Pose()
+    
+    cost_map = None
 
     #subscribers
     grid_sub = rospy.Subscriber('/map',OccupancyGrid, mapCallback, queue_size = 1)
@@ -270,7 +275,6 @@ def run():
 
     serv = rospy.Service('astar',CalcPath, calcPath)
 
-    cost_map = None
     rospy.sleep(1)
     print "Ready"
 
