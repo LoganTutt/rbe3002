@@ -15,14 +15,14 @@ from rbe3002.srv import *
 
 
 #converts a pose (Pose) to a point (Point) in the world grid
-def pose2point(pose):
+def pose2point(pose, grid):
 
     assert isinstance(pose, Pose)
 
-    dX = pose.position.x - map_conversion[0]
-    dY = pose.position.y - map_conversion[1]
+    dX = pose.position.x - grid.map_info.origin.position.x
+    dY = pose.position.y - grid.map_info.origin.position.y
 
-    return Point(int(dX/map_conversion[2]), int(dY/map_conversion[2]))
+    return Point(int(dX/grid.map_info.resolution), int(dY/grid.map_info.resolution))
 
 
 
@@ -34,8 +34,8 @@ def aStar(start, goal, grid):
     global cost_map
 
     # convert from poses to points + init orientation (1,2,3, or 4)
-    startPoint = pose2point(start)
-    goalPoint = pose2point(goal)
+    startPoint = pose2point(start,grid)
+    goalPoint = pose2point(goal,grid)
     quat = [start.orientation.x, start.orientation.y, start.orientation.z, start.orientation.w]
     roll, pitch, yaw = euler_from_quaternion(quat)
     initYaw = yaw  # returns the yaw
@@ -70,7 +70,6 @@ def aStar(start, goal, grid):
             cost_map.setVal(kid.point.x, kid.point.y, int(kid.cost))
 
         frontier.remove(curNode)
-        print len(frontier)
         curNode = frontier[0] #curNode becomes the frontier node with the lowest cost
 
     #order and optimize the waypoints
@@ -79,33 +78,33 @@ def aStar(start, goal, grid):
     ways = GridCells()
 
     #path is a GridCells, and is used to display the path in rviz
-    path.cell_height = map_info.resolution
-    path.cell_width = map_info.resolution
+    path.cell_height = grid.map_info.resolution
+    path.cell_width = grid.map_info.resolution
     path.header.frame_id = 'map'
     path.header.stamp = rospy.get_rostime()
 
     # ways is a GridCells, and is used to display the waypoints in rviz
-    ways.cell_height = map_info.resolution
-    ways.cell_width = map_info.resolution
+    ways.cell_height = grid.map_info.resolution
+    ways.cell_width = grid.map_info.resolution
     ways.header.frame_id = 'map'
     ways.header.stamp = rospy.get_rostime()
-    wayPoints.append(node2pose(curNode))
+    wayPoints.append(node2pose(curNode,grid))
 
-    distCount = 2.0/map_conversion[2]
+    distCount = 2.0/grid.map_info.resolution
     count = 0
     #generates waypoints at each rotation location
     while (not curNode.prevNode == None):
         if (not curNode.orientation == curNode.prevNode.orientation or count >= distCount):
-            wayPoints.insert(0,node2pose(curNode.prevNode))
+            wayPoints.insert(0,node2pose(curNode.prevNode,grid))
             temp = ROSPoint()
-            temp.x = curNode.prevNode.point.x * path.cell_width + map_info.origin.position.x
-            temp.y = curNode.prevNode.point.y * path.cell_height + map_info.origin.position.y
+            temp.x = curNode.prevNode.point.x * path.cell_width + grid.map_info.origin.position.x
+            temp.y = curNode.prevNode.point.y * path.cell_height + grid.map_info.origin.position.y
             temp.z = path.cell_height * .25 #offset above costmap
             ways.cells.append(temp)
             count = 0
         rosPoint = ROSPoint()
-        rosPoint.x = curNode.point.x * path.cell_width + map_info.origin.position.x
-        rosPoint.y = curNode.point.y * path.cell_height + map_info.origin.position.y
+        rosPoint.x = curNode.point.x * path.cell_width + grid.map_info.origin.position.x
+        rosPoint.y = curNode.point.y * path.cell_height + grid.map_info.origin.position.y
         rosPoint.z = path.cell_height * .125 #offset above path
         path.cells.append(rosPoint)
         curNode = curNode.prevNode
@@ -118,12 +117,12 @@ def aStar(start, goal, grid):
 
 
 #converts a node object to a Pose object for use in a path
-def node2pose(node):
+def node2pose(node,grid):
 
     pose = Pose()
 
-    pose.position.x = (node.point.x * map_conversion[2])+map_conversion[0]
-    pose.position.y = (node.point.y * map_conversion[2])+map_conversion[1]
+    pose.position.x = (node.point.x * grid.map_info.resolution)+grid.map_info.origin.position.x
+    pose.position.y = (node.point.y * grid.map_info.resolution)+grid.map_info.origin.position.y
 
     # convert to quaternian
     tempOri = node.orientation
@@ -147,8 +146,6 @@ def node2pose(node):
 #stores the incoming map and other useful information
 def mapCallback(data_map):
     global robot_map
-    global map_info
-    global map_conversion
     global cost_map
 
     assert isinstance(data_map,OccupancyGrid)
@@ -157,9 +154,8 @@ def mapCallback(data_map):
     robot_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info)
     cost_map = Grid(data_map.info.width, data_map.info.height, [0]*len(data_map.data),data_map.info)
 
-    map_info = data_map.info
-
-    map_conversion = [data_map.info.origin.position.x, data_map.info.origin.position.y, data_map.info.resolution]
+def localMapCallback(data_map):
+    pass
 
 #goalStamped is a PoseStamped
 #finds the path to goalStamped and returns the waypoints to reach there
@@ -234,6 +230,8 @@ def startCallback(startPose):
 
 #service handler. Takes in a start and end pose then returns a path
 def calcPath(req):
+    global cost_map
+
     start = PoseWithCovarianceStamped()
     start.pose.pose = req.start
     startCallback(start)
@@ -242,9 +240,24 @@ def calcPath(req):
     goal.pose = req.end
     path = pathCallback(goal, robot_map)
 
+    cost_map.publish(global_costmap_pub)
+    cost_map=None
+    
     return CalcPathResponse(path)
 
 
+#service handler. Takes in a start and end pose then returns a path
+def localCalcPath(req):
+    start = PoseWithCovarianceStamped()
+    start.pose.pose = req.start
+    startCallback(start)
+
+    goal = PoseStamped()
+    goal.pose = req.end
+    path = pathCallback(goal, local_map)
+
+    
+    return CalcPathResponse(path)
     
 
 
@@ -252,8 +265,6 @@ def run():
 
     rospy.init_node('planning_node')
 
-    global map_conversion
-    global map_info
     global robot_map
     global cost_map
     global pose
@@ -265,6 +276,7 @@ def run():
     global path_pub
     global waypoints_pub
     global way_pub
+    global global_costmap_pub
 
     pose = Pose()
     
@@ -272,19 +284,20 @@ def run():
 
     #subscribers
     grid_sub = rospy.Subscriber('/move_base/global_costmap/costmap',OccupancyGrid, mapCallback, queue_size = 1)
-    #local_grid_sub = rospy.Subscriber('/move_base/local_costmap/costmap',OccupancyGrid, localMapCallback, queue_size = 1)
+    local_grid_sub = rospy.Subscriber('/move_base/local_costmap/costmap',OccupancyGrid, localMapCallback, queue_size = 1)
     #goal_sub = rospy.Subscriber('/rviz_goal', PoseStamped, pathCallback, queue_size=1)
     #start_sub = rospy.Subscriber('/rviz_start', PoseWithCovarianceStamped, startCallback, queue_size=1)
 
     #publishers
     startPose_pub = rospy.Publisher('/robot_start', PoseStamped, queue_size=1)
     costMap_pub = rospy.Publisher('/robot_cost_map', OccupancyGrid, queue_size=1)
+    global_costmap_pub = rospy.Publisher('/global_cost_map', OccupancyGrid, queue_size=1)
     path_pub = rospy.Publisher('/robot_path', GridCells, queue_size=1)
     way_pub = rospy.Publisher('/robot_waypoints', GridCells, queue_size=1)
     waypoints_pub = rospy.Publisher('/waypoints', Path, queue_size=1)
 
     global_serv = rospy.Service('global_path',CalcPath, calcPath)
-    local_serv = rospy.Service('local_path',CalcPath, calcPath)
+    local_serv = rospy.Service('local_path',CalcPath, localCalcPath)
 
     rospy.sleep(1)
     print "Ready"
