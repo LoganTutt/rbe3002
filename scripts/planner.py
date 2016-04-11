@@ -30,7 +30,7 @@ def pose2point(pose):
 #calculates and returns path to the goal point
 #start and end are poses
 #passes back a list of Pose wayPoints to get from star to end
-def aStar(start, goal):
+def aStar(start, goal, grid):
     global cost_map
 
     # convert from poses to points + init orientation (1,2,3, or 4)
@@ -50,9 +50,11 @@ def aStar(start, goal):
     nodes = {curNode.key: curNode}
     frontier = [curNode]
 
+    print str(curNode.point.x) + "," + str(curNode.point.y)
+
     #keep searching the frontiers based on the lowest cost until goal is reached
     while (not curNode.point.equals(goalPoint)):
-        nodeKids = curNode.createNewNodes(nodes, robot_map, 50) #create new nodes that are neighbors to current node
+        nodeKids = curNode.createNewNodes(nodes, grid, 25) #create new nodes that are neighbors to current node
         for kid in nodeKids:
             # add the nodes to frontier based on cost
             for ind in range(0,len(frontier)):
@@ -68,6 +70,7 @@ def aStar(start, goal):
             cost_map.setVal(kid.point.x, kid.point.y, int(kid.cost))
 
         frontier.remove(curNode)
+        print len(frontier)
         curNode = frontier[0] #curNode becomes the frontier node with the lowest cost
 
     #order and optimize the waypoints
@@ -88,21 +91,25 @@ def aStar(start, goal):
     ways.header.stamp = rospy.get_rostime()
     wayPoints.append(node2pose(curNode))
 
+    distCount = 2.0/map_conversion[2]
+    count = 0
     #generates waypoints at each rotation location
     while (not curNode.prevNode == None):
-        if (not curNode.orientation == curNode.prevNode.orientation):
-            wayPoints.insert(0,node2pose(curNode))
+        if (not curNode.orientation == curNode.prevNode.orientation or count >= distCount):
+            wayPoints.insert(0,node2pose(curNode.prevNode))
             temp = ROSPoint()
             temp.x = curNode.prevNode.point.x * path.cell_width + map_info.origin.position.x
             temp.y = curNode.prevNode.point.y * path.cell_height + map_info.origin.position.y
             temp.z = path.cell_height * .25 #offset above costmap
             ways.cells.append(temp)
+            count = 0
         rosPoint = ROSPoint()
         rosPoint.x = curNode.point.x * path.cell_width + map_info.origin.position.x
         rosPoint.y = curNode.point.y * path.cell_height + map_info.origin.position.y
         rosPoint.z = path.cell_height * .125 #offset above path
         path.cells.append(rosPoint)
         curNode = curNode.prevNode
+        count += 1
 
     path_pub.publish(path)
     way_pub.publish(ways)
@@ -147,8 +154,8 @@ def mapCallback(data_map):
     assert isinstance(data_map,OccupancyGrid)
 
     print "recieved map"
-    robot_map = Grid(data_map.info.width, data_map.info.height, data_map.data)
-    cost_map = Grid(data_map.info.width, data_map.info.height, [0]*len(data_map.data))
+    robot_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info)
+    cost_map = Grid(data_map.info.width, data_map.info.height, [0]*len(data_map.data),data_map.info)
 
     map_info = data_map.info
 
@@ -156,17 +163,17 @@ def mapCallback(data_map):
 
 #goalStamped is a PoseStamped
 #finds the path to goalStamped and returns the waypoints to reach there
-def pathCallback(goalStamped):
+def pathCallback(goalStamped, grid):
     global cost_map
 
     print "Got start and goal poses"
 
 
-    cost_map = Grid(cost_map.width, cost_map.height, [0]*len(cost_map.data))
+    cost_map = Grid(cost_map.width, cost_map.height, [0]*len(cost_map.data), cost_map.map_info)
 
     goal = goalStamped.pose #get the pose from the stamped pose
 
-    dao = aStar(start_pose, goal)       #dao = way in Chinese
+    dao = aStar(start_pose, goal, grid)       #dao = way in Chinese
 
     way = Path()
     way.header = goalStamped.header
@@ -194,36 +201,36 @@ def startCallback(startPose):
     startPose_pub.publish(start_stamped_pose)
 
 
-#publishes the cost_map
-def publishCostMap():
-    global cost_map
-    costGrid = OccupancyGrid()
-
-
-    costGrid.header.frame_id = 'map'
-    costGrid.info = map_info
-    temparr = copy.deepcopy(cost_map.data) #protect ourselves from volitility
-
-    #map cost_map to between 0 and 127 for fancy colors in rviz
-    maxVal = max(temparr)
-
-    minVal = float('inf')
-    for cost in temparr:
-        if (not (cost == 0) and (cost < minVal)): minVal = cost
-
-    factor = 100.0/(maxVal - minVal)
-
-    if(maxVal == minVal): return
-
-    # costGrid.data = [(int((i - minVal) * factor) if (i != 0) else 0) for i in cost_map.data]
-    costGrid.data = []
-    for i in temparr:
-        if(i!=0):
-            costGrid.data.append(int((i - minVal) * factor))
-        else:
-            costGrid.data.append(0)
-
-    costMap_pub.publish(costGrid)
+##publishes the cost_map
+#def publishCostMap():
+#    global cost_map
+#    costGrid = OccupancyGrid()
+#
+#
+#    costGrid.header.frame_id = 'map'
+#    costGrid.info = map_info
+#    temparr = copy.deepcopy(cost_map.data) #protect ourselves from volitility
+#
+#    #map cost_map to between 0 and 127 for fancy colors in rviz
+#    maxVal = max(temparr)
+#
+#    minVal = float('inf')
+#    for cost in temparr:
+#        if (not (cost == 0) and (cost < minVal)): minVal = cost
+#
+#    factor = 100.0/(maxVal - minVal)
+#
+#    if(maxVal == minVal): return
+#
+#    # costGrid.data = [(int((i - minVal) * factor) if (i != 0) else 0) for i in cost_map.data]
+#    costGrid.data = []
+#    for i in temparr:
+#        if(i!=0):
+#            costGrid.data.append(int((i - minVal) * factor))
+#        else:
+#            costGrid.data.append(0)
+#
+#    costMap_pub.publish(costGrid)
 
 #service handler. Takes in a start and end pose then returns a path
 def calcPath(req):
@@ -233,7 +240,7 @@ def calcPath(req):
 
     goal = PoseStamped()
     goal.pose = req.end
-    path = pathCallback(goal)
+    path = pathCallback(goal, robot_map)
 
     return CalcPathResponse(path)
 
@@ -264,7 +271,8 @@ def run():
     cost_map = None
 
     #subscribers
-    grid_sub = rospy.Subscriber('/map',OccupancyGrid, mapCallback, queue_size = 1)
+    grid_sub = rospy.Subscriber('/move_base/global_costmap/costmap',OccupancyGrid, mapCallback, queue_size = 1)
+    #local_grid_sub = rospy.Subscriber('/move_base/local_costmap/costmap',OccupancyGrid, localMapCallback, queue_size = 1)
     #goal_sub = rospy.Subscriber('/rviz_goal', PoseStamped, pathCallback, queue_size=1)
     #start_sub = rospy.Subscriber('/rviz_start', PoseWithCovarianceStamped, startCallback, queue_size=1)
 
@@ -275,7 +283,8 @@ def run():
     way_pub = rospy.Publisher('/robot_waypoints', GridCells, queue_size=1)
     waypoints_pub = rospy.Publisher('/waypoints', Path, queue_size=1)
 
-    serv = rospy.Service('astar',CalcPath, calcPath)
+    global_serv = rospy.Service('global_path',CalcPath, calcPath)
+    local_serv = rospy.Service('local_path',CalcPath, calcPath)
 
     rospy.sleep(1)
     print "Ready"
@@ -283,7 +292,7 @@ def run():
     #this handles updating the cost_map
     while not rospy.is_shutdown():
         if (cost_map != None):
-            publishCostMap()
+            cost_map.publish(costMap_pub)
         rospy.sleep(.125)
 
 

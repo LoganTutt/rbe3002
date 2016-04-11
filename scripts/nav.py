@@ -282,7 +282,7 @@ if __name__ == '__main__':
     odom_sub = rospy.Subscriber('/odom',Odometry,timerCallback,queue_size=1)
     goal_sub = rospy.Subscriber('/this_is_rviz', PoseStamped, navToPose, queue_size=1)
    
-    getPath = rospy.ServiceProxy('astar', CalcPath)
+    getPath = rospy.ServiceProxy('global_path', CalcPath)
 
     # Use this command to make the program wait for some seconds
     rospy.sleep(rospy.Duration(1, 0))

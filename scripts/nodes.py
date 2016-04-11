@@ -1,5 +1,5 @@
-import math
-
+import math, rospy, copy
+from nav_msgs.msg import OccupancyGrid
 
 #represents a 2D point in a map
 class Point:
@@ -94,10 +94,11 @@ class Grid:
 
     #creates a new grid with inputed width and height using data
     #data should be a 1D array with a length of width*height
-    def __init__(self,width,height,data):
+    def __init__(self,width,height,data,info):
         self.width = width
         self.height = height
         self.data = data
+        self.map_info = info
 
     #gets the stored value that corresponds to the inputted (x,y) location
     def getVal(self,x,y):
@@ -106,3 +107,33 @@ class Grid:
     #sets the stored value that corresponds to the inputted (x,y) location to val
     def setVal(self,x,y,val):
         self.data[x+y*self.width] = val
+
+    def publish(self,publisher):
+        costGrid = OccupancyGrid()
+
+
+        costGrid.header.frame_id = 'map'
+        costGrid.info = self.map_info
+        temparr = copy.deepcopy(self.data) #protect ourselves from volitility
+
+        #map cost_map to between 0 and 127 for fancy colors in rviz
+        maxVal = max(temparr)
+
+        minVal = float('inf')
+        for cost in temparr:
+            if (not (cost == 0) and (cost < minVal)): minVal = cost
+
+        factor = 100.0/(maxVal - minVal)
+
+        if(maxVal == minVal): return
+
+        # costGrid.data = [(int((i - minVal) * factor) if (i != 0) else 0) for i in cost_map.data]
+        costGrid.data = []
+        for i in temparr:
+            if(i!=0):
+                costGrid.data.append(int((i - minVal) * factor))
+            else:
+                costGrid.data.append(0)
+
+        publisher.publish(costGrid)
+
