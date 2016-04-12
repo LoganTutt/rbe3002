@@ -45,6 +45,7 @@ class Navigate:
     def __init__(self, angleThresh, distThresh):
         self.angleThresh = angleThresh
         self.distThresh = distThresh
+        self.resetPID()
         pass
 
     #Publishes Twist messages
@@ -68,11 +69,6 @@ class Navigate:
 
         assert isinstance(self.goal,Pose)
 
-        #get goal pose and orientation
-        quat = self.goal.orientation
-        q = [quat.x, quat.y, quat.z, quat.w]
-        roll, pitch, yaw = euler_from_quaternion(q)
-        goalT = yaw
         goalX = self.goal.position.x
         goalY = self.goal.position.y
 
@@ -111,7 +107,7 @@ class Navigate:
             self.goalAngle = math.atan2(goalY - self.cur.position.y, goalX - self.cur.position.x)
             atGoal = (self.curDriveDelta <= self.distThresh)
 
-            print str(self.curDriveDelta)
+            #print str(self.curDriveDelta)
 
             #keep going at given speed
             self.linVel = (self.driveKp * self.curDriveDelta + self.driveKi * self.totalDriveDelta * timeDelta - self.driveKd * abs(self.prevDriveDelta - self.curDriveDelta) / timeDelta)
@@ -131,6 +127,11 @@ class Navigate:
 
         #initialize position
         atGoal = False
+
+        self.curTurnDelta = math.atan2(math.sin(self.goalAngle - self.getCurrentAngle()), math.cos(self.goalAngle - self.getCurrentAngle()))
+
+        print self.curTurnDelta
+        rospy.sleep(0.01)
 
         while (not atGoal and not rospy.is_shutdown()):
             atGoal = (abs(self.curTurnDelta) <= self.angleThresh)
@@ -155,7 +156,7 @@ class Navigate:
         while (not atGoal and not rospy.is_shutdown()):
             curAng = self.cur.orientation.z
             self.goalAngle = abs(math.atan2(math.sin(curAng - initAng),math.cos(curAng - initAng)))
-            atGoal = (self.curTurnDelta >= angle)
+            atGoal = (self.curTurnDelta >= self.angleThresh)
 
             #keep going at given speed
             self.linVel = 0.0
