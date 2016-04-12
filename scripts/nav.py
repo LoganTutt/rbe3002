@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import rospy, math
+import rospy, math, tf
 from kobuki_msgs.msg import BumperEvent
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist, Pose, PoseWithCovarianceStamped
@@ -25,11 +25,11 @@ class Navigate:
     distThresh = 0.0
 
     # PID Constants
-    turnKp = 1.0
+    turnKp = 2.0
     turnKi = 0.005
     turnKd = 0.0
 
-    driveKp = 0.875
+    driveKp = .5
     driveKi = 0.0
     driveKd = 0.05
 
@@ -52,7 +52,13 @@ class Navigate:
     def pubTwist(self):
         global pub
         msg = Twist()
+        xVal = self.linVel
+        if xVal > .5:
+            xVal = .5
         msg.linear.x = self.linVel
+        aVal = self.angVel
+        if aVal > .5:
+            aVal = .5
         msg.angular.z = self.angVel
         pub.publish(msg)
 
@@ -211,7 +217,8 @@ def odomCallback(event):
     navBot.cur.orientation = event.pose.pose.orientation
 
     sendPose = PoseStamped()
-    sendPose.header.frame_id = 'map'
+    sendPose.header.frame_id = 'odom'
+    sendPose.header.stamp = rospy.Time.now()
     sendPose.pose = event.pose.pose
 
     pose_pub.publish(sendPose)
@@ -228,9 +235,11 @@ def getAngleFromPose(pose):
 # creates a path and uses that path to move to the location
 def navToPose(goal):
     # get path from A*
+    goal.header.stamp = rospy.Time(0)
+    goal = transformer.transformPose('odom',goal)
     globalPathServ = getGlobalPath(navBot.cur, goal.pose)
     path = globalPathServ.path
-    if (path == None):
+    if (len(path.poses) == 0):
         print "point not navigatable"
         return
     print "started driving"
@@ -240,11 +249,13 @@ def navToPose(goal):
         print "naving to pose"
         localPathServ = getLocalPath(navBot.cur, p.pose)
         localPath = localPathServ.path
-        if (localPath == None):
+        if (len(localPath.poses) == 0):
             print "no possible path"
+            navToPose(goal)
             return
         for tempPose in localPath.poses:
             navBot.goToPose(tempPose)
+        navBot.rotateTo(getAngleFromPose(p.pose))
     navBot.rotateTo(getAngleFromPose(goal.pose))
 
     print "finished Navigation"
@@ -261,10 +272,13 @@ if __name__ == '__main__':
     global start_pub
     global getGlobalPath
     global getLocalPath
+    global transformer
 
     global navBot
 
     navBot = Navigate(.01, .01) #pass these the resolutions that you want.
+
+    transformer = tf.TransformListener()
 
     pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, None, queue_size=10) # Publisher for commanding robot motion
     pose_pub = rospy.Publisher('/robot_pose', PoseStamped, None, queue_size=10)

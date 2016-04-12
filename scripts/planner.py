@@ -19,6 +19,15 @@ def pose2point(pose, grid):
 
     assert isinstance(pose, Pose)
 
+
+    poseStamped = PoseStamped()
+    poseStamped.pose = pose
+    poseStamped.header.frame_id = 'odom'
+    poseStamped.header.stamp = rospy.Time(0)
+
+    pose = transformer.transformPose(grid.frame_id,poseStamped).pose
+    
+
     dX = pose.position.x - grid.map_info.origin.position.x
     dY = pose.position.y - grid.map_info.origin.position.y
 
@@ -46,6 +55,12 @@ def node2pose(node,grid):
     pose.orientation.z = quat[2]
     pose.orientation.w = quat[3]
 
+    poseStamped = PoseStamped()
+    poseStamped.pose = pose
+    poseStamped.header.frame_id = grid.frame_id
+    poseStamped.header.stamp = rospy.Time(0)
+
+    pose = transformer.transformPose('odom',poseStamped).pose
     return pose
 
 
@@ -63,7 +78,7 @@ def aStar(start, goal, grid,wayPub):
     roll, pitch, yaw = euler_from_quaternion(quat)
     initYaw = yaw  # returns the yaw
     
-    cutoffVal = 25
+    cutoffVal = 60
     if grid.getVal(startPoint.x,startPoint.y) > cutoffVal:
         cutoffVal = grid.getVal(startPoint.x,startPoint.y)
 
@@ -100,6 +115,9 @@ def aStar(start, goal, grid,wayPub):
             cost_map.setVal(kid.point.x, kid.point.y, int(kid.cost))
 
         frontier.remove(curNode)
+        if not frontier:
+            return None
+        
         curNode = frontier[0] #curNode becomes the frontier node with the lowest cost
 
     #order and optimize the waypoints
@@ -110,13 +128,13 @@ def aStar(start, goal, grid,wayPub):
     #path is a GridCells, and is used to display the path in rviz
     path.cell_height = grid.map_info.resolution
     path.cell_width = grid.map_info.resolution
-    path.header.frame_id = 'map'
+    path.header.frame_id = grid.frame_id
     path.header.stamp = rospy.get_rostime()
 
     # ways is a GridCells, and is used to display the waypoints in rviz
     ways.cell_height = grid.map_info.resolution
     ways.cell_width = grid.map_info.resolution
-    ways.header.frame_id = 'map'
+    ways.header.frame_id = grid.frame_id
     ways.header.stamp = rospy.get_rostime()
     wayPoints.append(node2pose(curNode,grid))
     
@@ -128,7 +146,7 @@ def aStar(start, goal, grid,wayPub):
 
     curNode = curNode.prevNode
 
-    distCount = 1.0/grid.map_info.resolution
+    distCount = 1.5/grid.map_info.resolution
     count = 0
     #generates waypoints at each rotation location
     while (curNode != None and not curNode.prevNode == None):
@@ -162,9 +180,11 @@ def calcWaypoints(start,goal, grid, wayPub):
 
     print "Got start and goal poses"
 
-    cost_map = Grid(grid.width, grid.height, [0]*len(grid.data), grid.map_info)
+    cost_map = Grid(grid.width, grid.height, [0]*len(grid.data), grid.map_info, grid.frame_id)
 
     dao = aStar(start, goal, grid, wayPub)       #dao = way in Chinese
+
+    if dao == None: return
 
     way = Path()
     for waypoint in dao:
@@ -190,7 +210,7 @@ def mapCallback(data_map):
     assert isinstance(data_map,OccupancyGrid)
 
     print "recieved map"
-    robot_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info)
+    robot_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info,data_map.header.frame_id)
     #cost_map = Grid(data_map.info.width, data_map.info.height, [0]*len(data_map.data),data_map.info)
 
 
@@ -204,7 +224,7 @@ def localMapCallback(data_map):
     assert isinstance(data_map,OccupancyGrid)
 
     print "recieved local map"
-    local_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info)
+    local_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info,data_map.header.frame_id)
 
 
 
@@ -248,9 +268,12 @@ def run():
     global way_pub
     global global_costmap_pub
     global global_way_pub
-
+    global transformer
     
     cost_map = None
+
+    
+    transformer = tf.TransformListener()
 
     #subscribers
     grid_sub = rospy.Subscriber('/move_base/global_costmap/costmap',OccupancyGrid, mapCallback, queue_size = 1)
