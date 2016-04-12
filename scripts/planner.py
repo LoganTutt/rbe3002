@@ -132,7 +132,7 @@ def aStar(start, goal, grid,wayPub):
     count = 0
     #generates waypoints at each rotation location
     while (curNode != None and not curNode.prevNode == None):
-        if (not curNode.orientation == curNode.prevNode.orientation or count >= distCount):
+        if (not curNode.orientation == curNode.prevNode.orientation or count >= distCount) and curNode.prevNode.prevNode != None:
             wayPoints.insert(0,node2pose(curNode.prevNode,grid))
             temp = ROSPoint()
             temp.x = (curNode.prevNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
