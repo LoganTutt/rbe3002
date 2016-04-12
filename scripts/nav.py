@@ -36,6 +36,7 @@ class Navigate:
     prevTurnDelta = 0
     totalTurnDelta = 0
 
+
     def __init__(self, topAngVel, topLinVel):
         self.topAngVel = topAngVel
         self.topLinVel = topLinVel
@@ -197,14 +198,25 @@ def odomCallback(event):
 # creates a path and uses that path to move to the location
 def navToPose(goal):
     # get path from A*
-    astar = getPath(navBot.cur, goal.pose)
-    path = astar.path
+    globalPathServ = getGlobalPath(navBot.cur, goal.pose)
+    path = globalPathServ.path
+    if (path == None):
+        print "point not navigatable"
+        return
     print "started driving"
 
     # drive to each waypoint in the path
     for p in path.poses:
-        navBot.goToPose(p)
         print "naving to pose"
+        localPathServ = getLocalPath(navBot.cur, p.pose)
+        localPath = localPathServ.path
+        if (localPath == None):
+            print "no possible path"
+            return
+        for tempPose in localPath.poses:
+            navBot.goToPose(tempPose)
+
+    print "finished Navigation"
 
 
 # This is the program's main function
@@ -220,7 +232,8 @@ if __name__ == '__main__':
     global odom_tf
     global odom_list
     global start_pub
-    global getPath
+    global getGlobalPath
+    global getLocalPath
 
     global navBot
 
@@ -233,7 +246,8 @@ if __name__ == '__main__':
     odom_sub = rospy.Subscriber('/odom',Odometry,odomCallback,queue_size=1)
     goal_sub = rospy.Subscriber('/this_is_rviz', PoseStamped, navToPose, queue_size=1)
    
-    getPath = rospy.ServiceProxy('global_path', CalcPath)
+    getGlobalPath = rospy.ServiceProxy('global_path', CalcPath)
+    getLocalPath = rospy.ServiceProxy('local_path', CalcPath)
 
     # Use this command to make the program wait for some seconds
     rospy.sleep(rospy.Duration(1, 0))
