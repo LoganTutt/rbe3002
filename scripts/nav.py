@@ -19,27 +19,33 @@ class Navigate:
     goal = Pose()
     cur = Pose()
     goalAngle = 0.0
-    topAngVel = 0.0
-    topLinVel = 0.0
     angVel = 0.0
     linVel = 0.0
+    angleThresh = 0.0
+    distThresh = 0.0
 
     # PID Constants
-    turnKp = 0.75
-    turnKi = 0.000175
+    turnKp = 1.0
+    turnKi = 0.005
     turnKd = 0.0
-    driveKp = 0.25
+
+    driveKp = 0.875
     driveKi = 0.0
-    driveKd = 0.0
+    driveKd = 0.05
 
     curTurnDelta = 0.0
-    prevTurnDelta = 0
-    totalTurnDelta = 0
+    prevTurnDelta = 0.0
+    totalTurnDelta = 0.0
+
+    curDriveDelta = 0.0
+    prevDriveDelta = 0.0
+    totalDriveDelta = 0.0
 
 
-    def __init__(self, topAngVel, topLinVel):
-        self.topAngVel = topAngVel
-        self.topLinVel = topLinVel
+    def __init__(self, angleThresh, distThresh):
+        self.angleThresh = angleThresh
+        self.distThresh = distThresh
+        pass
 
     #Publishes Twist messages
     def pubTwist(self):
@@ -89,24 +95,33 @@ class Navigate:
     #This function accepts a speed and a distance for the robot to move in a straight line
     def driveStraight(self, dist):
 
+        timeDelta = 0.1
+
         #initialize position
-        initX = self.cur.position.x
-        initY = self.cur.position.y
+        goalX = self.goal.position.x
+        goalY = self.goal.position.y
         atGoal = False
 
+        print "driving with PID"
+
         while (not atGoal and not rospy.is_shutdown()):
-            curX = self.cur.position.x
-            curY = self.cur.position.y
-            curDis = math.sqrt((initX - curX)**2 + (initY - curY)**2)
-            atGoal = (curDis >= dist)
+            self.prevDriveDelta = self.curDriveDelta
+            self.curDriveDelta = math.sqrt((goalX - self.cur.position.x)**2 + (goalY - self.cur.position.y)**2)
+            self.totalDriveDelta += self.curDriveDelta
+            self.goalAngle = math.atan2(goalY - self.cur.position.y, goalX - self.cur.position.x)
+            atGoal = (self.curDriveDelta <= self.distThresh)
+
+            print str(self.curDriveDelta)
 
             #keep going at given speed
-            self.linVel = self.topLinVel #TODO PID
-            rospy.sleep(0.1)
+            self.linVel = (self.driveKp * self.curDriveDelta + self.driveKi * self.totalDriveDelta * timeDelta - self.driveKd * abs(self.prevDriveDelta - self.curDriveDelta) / timeDelta)
+            rospy.sleep(timeDelta)
 
         #stop when goal is reached
-        self.linVel = 0.0
+        print "got there"
         self.resetPID()
+        self.linVel = 0.0
+        self.angVel = 0.0
 
 
     #Accepts an angle and makes the robot rotate around it. Assume there's no reason for
@@ -118,16 +133,15 @@ class Navigate:
         atGoal = False
 
         while (not atGoal and not rospy.is_shutdown()):
-            self.prevTurnDelta = self.curTurnDelta
-            self.curTurnDelta = abs(math.atan2(math.sin(self.getCurrentAngle() - self.goalAngle),math.cos(self.getCurrentAngle() - self.goalAngle)))
-            self.totalTurnDelta += self.curTurnDelta
-            atGoal = (abs(self.curTurnDelta) <= abs(self.topAngVel*timeRes)/2)
+            atGoal = (abs(self.curTurnDelta) <= self.angleThresh)
 
             self.linVel = 0.0
             rospy.sleep(timeRes)
 
         #stop when goal is reached
         print "got to the angle"
+        self.angVel = 0.0
+        self.linVel = 0.0
         self.resetPID()
 
 
@@ -140,7 +154,7 @@ class Navigate:
 
         while (not atGoal and not rospy.is_shutdown()):
             curAng = self.cur.orientation.z
-            self.curTurnDelta = abs(math.atan2(math.sin(curAng - initAng),math.cos(curAng - initAng)))
+            self.goalAngle = abs(math.atan2(math.sin(curAng - initAng),math.cos(curAng - initAng)))
             atGoal = (self.curTurnDelta >= angle)
 
             #keep going at given speed
@@ -153,20 +167,27 @@ class Navigate:
 
     def updatePID(self, event):
 
-        print str(self.getCurrentAngle()) + "  " + str(self.goalAngle)
+        #print str(self.getCurrentAngle()) + "  " + str(self.goalAngle)
 
+        self.prevTurnDelta = self.curTurnDelta
         timeDelta = .01 #abs(event.current_real - event.last_real)
-        curDelta = math.atan2(math.sin(self.goalAngle - self.getCurrentAngle()), math.cos(self.goalAngle - self.getCurrentAngle()))
-        self.totalTurnDelta += curDelta * timeDelta
-        self.angVel = (self.turnKp * curDelta + self.turnKi * self.totalTurnDelta - self.turnKd * abs(self.prevTurnDelta - curDelta) / timeDelta)
-        self.prevTurnDelta = curDelta
+        self.curTurnDelta = math.atan2(math.sin(self.goalAngle - self.getCurrentAngle()), math.cos(self.goalAngle - self.getCurrentAngle()))
+        self.totalTurnDelta += self.curTurnDelta * timeDelta
+        self.angVel = (self.turnKp * self.curTurnDelta + self.turnKi * self.totalTurnDelta * timeDelta - self.turnKd * abs(self.prevTurnDelta - self.curTurnDelta) / timeDelta)
 
         self.pubTwist()
 
 
     def resetPID(self):
-        self.totalTurnDelta = 0
-        self.prevTurnDelta = 0
+        self.goalAngle = self.getCurrentAngle()
+
+        self.curTurnDelta = 0.0
+        self.totalTurnDelta = 0.0
+        self.prevTurnDelta = 0.0
+
+        self.curDriveDelta = 0.0
+        self.totalDriveDelta = 0.0
+        self.prevDriveDelta = 0.0
 
 
 # Bumper Event Callback function
@@ -195,6 +216,14 @@ def odomCallback(event):
     pose_pub.publish(sendPose)
 
 
+def getAngleFromPose(pose):
+
+    quat = pose.orientation
+    q = [quat.x, quat.y, quat.z, quat.w]
+    roll, pitch, yaw = euler_from_quaternion(q)
+    return yaw
+
+
 # creates a path and uses that path to move to the location
 def navToPose(goal):
     # get path from A*
@@ -215,6 +244,7 @@ def navToPose(goal):
             return
         for tempPose in localPath.poses:
             navBot.goToPose(tempPose)
+    navBot.rotateTo(getAngleFromPose(goal.pose))
 
     print "finished Navigation"
 
@@ -237,7 +267,7 @@ if __name__ == '__main__':
 
     global navBot
 
-    navBot = Navigate(.6, .3)
+    navBot = Navigate(.01, .01) #pass these the resolutions that you want.
 
     pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, None, queue_size=10) # Publisher for commanding robot motion
     pose_pub = rospy.Publisher('/robot_pose', PoseStamped, None, queue_size=10)
