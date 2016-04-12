@@ -25,11 +25,11 @@ class Navigate:
     distThresh = 0.0
 
     # PID Constants
-    turnKp = 1.0
+    turnKp = 2.0
     turnKi = 0.005
     turnKd = 0.0
 
-    driveKp = 0.875
+    driveKp = .5
     driveKi = 0.0
     driveKd = 0.05
 
@@ -52,7 +52,13 @@ class Navigate:
     def pubTwist(self):
         global pub
         msg = Twist()
+        xVal = self.linVel
+        if xVal > .5:
+            xVal = .5
         msg.linear.x = self.linVel
+        aVal = self.angVel
+        if aVal > .5:
+            aVal = .5
         msg.angular.z = self.angVel
         pub.publish(msg)
 
@@ -245,7 +251,8 @@ def navToPose(goal):
         localPath = localPathServ.path
         if (len(localPath.poses) == 0):
             print "no possible path"
-            continue
+            navToPose(goal)
+            return
         for tempPose in localPath.poses:
             navBot.goToPose(tempPose)
         navBot.rotateTo(getAngleFromPose(p.pose))

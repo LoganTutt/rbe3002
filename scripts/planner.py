@@ -78,7 +78,7 @@ def aStar(start, goal, grid,wayPub):
     roll, pitch, yaw = euler_from_quaternion(quat)
     initYaw = yaw  # returns the yaw
     
-    cutoffVal = 25
+    cutoffVal = 60
     if grid.getVal(startPoint.x,startPoint.y) > cutoffVal:
         cutoffVal = grid.getVal(startPoint.x,startPoint.y)
 
@@ -115,6 +115,9 @@ def aStar(start, goal, grid,wayPub):
             cost_map.setVal(kid.point.x, kid.point.y, int(kid.cost))
 
         frontier.remove(curNode)
+        if not frontier:
+            return None
+        
         curNode = frontier[0] #curNode becomes the frontier node with the lowest cost
 
     #order and optimize the waypoints
