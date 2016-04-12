@@ -51,7 +51,7 @@ def navToPose(goal):
             print "no possible path"
             return
         for tempPose in localPath.poses:
-            goToPose(p)
+            goToPose(tempPose)
     
     print "finished Navigation"
 

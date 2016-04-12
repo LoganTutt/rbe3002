@@ -31,8 +31,8 @@ def node2pose(node,grid):
 
     pose = Pose()
 
-    pose.position.x = (node.point.x * grid.map_info.resolution)+grid.map_info.origin.position.x
-    pose.position.y = (node.point.y * grid.map_info.resolution)+grid.map_info.origin.position.y
+    pose.position.x = ((node.point.x+.5) * grid.map_info.resolution)+grid.map_info.origin.position.x
+    pose.position.y = ((node.point.y+.5) * grid.map_info.resolution)+grid.map_info.origin.position.y
 
     # convert to quaternian
     tempOri = node.orientation
@@ -150,6 +150,7 @@ def aStar(start, goal, grid,wayPub):
 
     path_pub.publish(path)
     wayPub.publish(ways)
+
 
     return wayPoints
 
