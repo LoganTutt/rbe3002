@@ -257,10 +257,10 @@ Visualization Manager:
       Class: rviz/Map
       Color Scheme: costmap
       Draw Behind: false
-      Enabled: false
+      Enabled: true
       Name: GlobalCostMap
       Topic: /global_cost_map
-      Value: false
+      Value: true
     - Alpha: 0.7
       Class: rviz/Map
       Color Scheme: costmap
@@ -311,6 +311,13 @@ Visualization Manager:
       Name: Waypoints
       Topic: /robot_waypoints
       Value: true
+    - Alpha: 1
+      Class: rviz/GridCells
+      Color: 25; 255; 0
+      Enabled: true
+      Name: GlobalWaypoints
+      Topic: /global_waypoints
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -334,7 +341,7 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: 0.33
+      Angle: -0.0999998
       Class: rviz/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
@@ -343,11 +350,11 @@ Visualization Manager:
         Value: false
       Name: Current View
       Near Clip Distance: 0.01
-      Scale: 124.898
+      Scale: 60.5776
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz)
-      X: 1.021
-      Y: 0.450459
+      X: -1.59173
+      Y: 3.06125
     Saved: ~
 Window Geometry:
   Displays:

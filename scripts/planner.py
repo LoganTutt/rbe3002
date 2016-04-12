@@ -30,7 +30,7 @@ def pose2point(pose, grid):
 #calculates and returns path to the goal point
 #start and end are poses
 #passes back a list of Pose wayPoints to get from star to end
-def aStar(start, goal, grid):
+def aStar(start, goal, grid,wayPub):
     global cost_map
     
     # convert from poses to points + init orientation (1,2,3, or 4)
@@ -96,6 +96,12 @@ def aStar(start, goal, grid):
     ways.header.frame_id = 'map'
     ways.header.stamp = rospy.get_rostime()
     wayPoints.append(node2pose(curNode,grid))
+    
+    temp = ROSPoint()
+    temp.x = curNode.prevNode.point.x * path.cell_width + grid.map_info.origin.position.x
+    temp.y = curNode.prevNode.point.y * path.cell_height + grid.map_info.origin.position.y
+    temp.z = path.cell_height * .25 #offset above costmap
+    ways.cells.append(temp)
 
     distCount = 1.0/grid.map_info.resolution
     count = 0
@@ -118,7 +124,7 @@ def aStar(start, goal, grid):
         count += 1
 
     path_pub.publish(path)
-    way_pub.publish(ways)
+    wayPub.publish(ways)
 
     return wayPoints
 
@@ -172,7 +178,7 @@ def localMapCallback(data_map):
 
 #goalStamped is a PoseStamped
 #finds the path to goalStamped and returns the waypoints to reach there
-def pathCallback(goalStamped, grid):
+def pathCallback(goalStamped, grid,wayPub):
     global cost_map
 
     print "Got start and goal poses"
@@ -182,7 +188,7 @@ def pathCallback(goalStamped, grid):
 
     goal = goalStamped.pose #get the pose from the stamped pose
 
-    dao = aStar(start_pose, goal, grid)       #dao = way in Chinese
+    dao = aStar(start_pose, goal, grid, wayPub)       #dao = way in Chinese
 
     way = Path()
     way.header = goalStamped.header
@@ -251,10 +257,11 @@ def calcPath(req):
 
     goal = PoseStamped()
     goal.pose = req.end
-    path = pathCallback(goal, robot_map)
+    path = pathCallback(goal, robot_map, global_way_pub)
 
     cost_map.publish(global_costmap_pub)
     cost_map=None
+
     
     return CalcPathResponse(path)
 
@@ -267,7 +274,7 @@ def localCalcPath(req):
 
     goal = PoseStamped()
     goal.pose = req.end
-    path = pathCallback(goal, local_map)
+    path = pathCallback(goal, local_map, way_pub)
 
     
     return CalcPathResponse(path)
@@ -290,6 +297,7 @@ def run():
     global waypoints_pub
     global way_pub
     global global_costmap_pub
+    global global_way_pub
 
     pose = Pose()
     
@@ -307,6 +315,7 @@ def run():
     global_costmap_pub = rospy.Publisher('/global_cost_map', OccupancyGrid, queue_size=1)
     path_pub = rospy.Publisher('/robot_path', GridCells, queue_size=1)
     way_pub = rospy.Publisher('/robot_waypoints', GridCells, queue_size=1)
+    global_way_pub = rospy.Publisher('/global_waypoints', GridCells, queue_size=1)
     waypoints_pub = rospy.Publisher('/waypoints', Path, queue_size=1)
 
     global_serv = rospy.Service('global_path',CalcPath, calcPath)
