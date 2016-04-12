@@ -122,8 +122,10 @@ class Grid:
         minVal = float('inf')
         for cost in temparr:
             if (not (cost == 0) and (cost < minVal)): minVal = cost
-
-        factor = 100.0/(maxVal - minVal)
+        
+        minVal *= 1.01
+        
+        factor = 90.0/(maxVal - minVal)
 
         if(maxVal == minVal): return
 
