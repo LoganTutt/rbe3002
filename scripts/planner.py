@@ -23,7 +23,7 @@ def pose2point(pose, grid):
     poseStamped = PoseStamped()
     poseStamped.pose = pose
     poseStamped.header.frame_id = 'odom'
-    poseStamped.header.stamp = rospy.Time.now()
+    poseStamped.header.stamp = rospy.Time(0)
 
     pose = transformer.transformPose(grid.frame_id,poseStamped).pose
     
@@ -58,7 +58,7 @@ def node2pose(node,grid):
     poseStamped = PoseStamped()
     poseStamped.pose = pose
     poseStamped.header.frame_id = grid.frame_id
-    poseStamped.header.stamp = rospy.Time.now()
+    poseStamped.header.stamp = rospy.Time(0)
 
     pose = transformer.transformPose('odom',poseStamped).pose
     return pose

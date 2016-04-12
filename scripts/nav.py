@@ -229,6 +229,7 @@ def getAngleFromPose(pose):
 # creates a path and uses that path to move to the location
 def navToPose(goal):
     # get path from A*
+    goal.header.stamp = rospy.Time(0)
     goal = transformer.transformPose('odom',goal)
     globalPathServ = getGlobalPath(navBot.cur, goal.pose)
     path = globalPathServ.path
