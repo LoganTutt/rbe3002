@@ -94,11 +94,12 @@ class Grid:
 
     #creates a new grid with inputed width and height using data
     #data should be a 1D array with a length of width*height
-    def __init__(self,width,height,data,info):
+    def __init__(self,width,height,data,info,frame_id):
         self.width = width
         self.height = height
         self.data = data
         self.map_info = info
+        self.frame_id = frame_id
 
     #gets the stored value that corresponds to the inputted (x,y) location
     def getVal(self,x,y):
@@ -112,7 +113,8 @@ class Grid:
         costGrid = OccupancyGrid()
 
 
-        costGrid.header.frame_id = 'map'
+        costGrid.header.frame_id = self.frame_id
+        costGrid.header.stamp = rospy.Time.now()
         costGrid.info = self.map_info
         temparr = copy.deepcopy(self.data) #protect ourselves from volitility
 
