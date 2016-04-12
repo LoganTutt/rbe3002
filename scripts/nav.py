@@ -253,11 +253,7 @@ def navToPose(goal):
 # This is the program's main function
 if __name__ == '__main__':
     # Change this node name to include your username
-    rospy.init_node('sample_Lab_2_node')
-
-
-    # These are global variables. Write "global <variable_name>" in any other function
-    #  to gain access to these global variables
+    rospy.init_node('rbe3002_nav')
     
     global pub
     global odom_tf
