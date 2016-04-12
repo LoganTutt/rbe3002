@@ -14,6 +14,14 @@ from rbe3002.srv import *
 wheel_rad = 3.5 / 100.0 #cm to m
 wheel_base = 23.0 / 100.0 #cm to m
 
+#Driving PID Constants
+turnKp = 0.75
+turnKi = 0.000175
+turnKd = 0.0
+driveKp = 0.25
+driveKi = 0.0
+driveKd = 0.0
+
 
 #Publishes Twist messages
 def pubTwist(lin_Vel, ang_Vel):
@@ -39,7 +47,6 @@ def navToPose(goal):
 
 #drives to the pose of goal
 def goToPose(goal):
-    print "starting navigation!"
 
     #get current pose and orientation
     curT = pose.orientation.z
@@ -59,16 +66,12 @@ def goToPose(goal):
     dX = goalX - curX
     dY = goalY - curY
 
-    print "rotate!"
     rotateTo(.6, math.atan2(dY,dX))
 
-    print "move!"
     driveStraight(.3, math.sqrt(dX**2 + dY**2))
-    
-    print "rotate!"
+
     rotateTo(.6, goalT)
 
-    print "done"
     pass
 
 
@@ -163,19 +166,19 @@ def rotateTo(angVel,angle):
 
     #initialize position
     atGoal = False
+    totalDelta = 0
+    prevDelta = 0
 
     while (not atGoal and not rospy.is_shutdown()):
-        print "starting to rotate"
         curDelta = math.atan2(math.sin(pose.orientation.z - angle),math.cos(pose.orientation.z - angle))
-        atGoal = (abs(curDelta) <= abs(angVel*timeRes))
-        print curDelta
-        print atGoal
+        totalDelta += curDelta
+        atGoal = (abs(curDelta) <= abs(angVel*timeRes)/2)
+
+        PID = turnKp * curDelta + turnKi * totalDelta - turnKd * abs(prevDelta - curDelta)
+        prevDelta = curDelta
 
         #keep going at given speed
-        if (curDelta <= 0):
-            pubTwist(0,angVel)
-        else:
-            pubTwist(0,-angVel)
+        pubTwist(0,-angVel*PID)
         rospy.sleep(timeRes)
 
     #stop when goal is reached
@@ -235,9 +238,8 @@ def readBumper(msg):
 
 
 # (Optional) If you need something to happen repeatedly at a fixed interval, write the code here.
-# Start the timer with the following line of code: 
-#   rospy.Timer(rospy.Duration(.01), timerCallback)
-def timerCallback(event):
+# Start the timer with the following line of code:
+def odomCallback(event):
     global pose
     global start_pub
 
@@ -256,6 +258,11 @@ def timerCallback(event):
     sendPose.pose = event.pose.pose
 
     pose_pub.publish(sendPose)
+
+
+# def timerCallback(event):
+#     assert isinstance(event,)
+
 
 # This is the program's main function
 if __name__ == '__main__':
@@ -279,14 +286,14 @@ if __name__ == '__main__':
     pose_pub = rospy.Publisher('/robot_pose', PoseStamped, None, queue_size=10) # Publisher for commanding robot motion
     #start_pub = rospy.Publisher('/rviz_start',PoseWithCovarianceStamped,queue_size = 1)
     #bumper_sub = rospy.Subscriber('/mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
-    odom_sub = rospy.Subscriber('/odom',Odometry,timerCallback,queue_size=1)
+    odom_sub = rospy.Subscriber('/odom',Odometry,odomCallback,queue_size=1)
     goal_sub = rospy.Subscriber('/this_is_rviz', PoseStamped, navToPose, queue_size=1)
    
     getPath = rospy.ServiceProxy('global_path', CalcPath)
 
     # Use this command to make the program wait for some seconds
+    #rospy.Timer(rospy.Duration(.01), timerCallback)
     rospy.sleep(rospy.Duration(1, 0))
-
 
 
     print "Starting navigation node"
