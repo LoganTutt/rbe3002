@@ -27,14 +27,17 @@ def pubTwist(lin_Vel, ang_Vel):
 #creates a path and uses that path to move to the location
 def navToPose(goal):
     #get path from A*
-    astar = getPath(pose, goal.pose)
-    path = astar.path
+    globalPathServ = getGlobalPath(pose, goal.pose)
+    path = globalPathServ.path
     print "started driving"
 
     #drive to each waypoint in the path
     for p in path.poses:
         print "naving to pose"
-        goToPose(p)
+        localPathServ = getLocalPath(pose, p.pose)
+        localPath = localPathServ.path
+        for tempPose in localPath.poses:
+            goToPose(p)
 
 
 #drives to the pose of goal
@@ -271,7 +274,8 @@ if __name__ == '__main__':
     global odom_tf
     global odom_list
     global start_pub
-    global getPath
+    global getGlobalPath
+    global getLocalPath
 
     pose = Pose()
 
@@ -282,7 +286,8 @@ if __name__ == '__main__':
     odom_sub = rospy.Subscriber('/odom',Odometry,timerCallback,queue_size=1)
     goal_sub = rospy.Subscriber('/this_is_rviz', PoseStamped, navToPose, queue_size=1)
    
-    getPath = rospy.ServiceProxy('global_path', CalcPath)
+    getGlobalPath = rospy.ServiceProxy('global_path', CalcPath)
+    getLocalPath = rospy.ServiceProxy('local_path', CalcPath)
 
     # Use this command to make the program wait for some seconds
     rospy.sleep(rospy.Duration(1, 0))

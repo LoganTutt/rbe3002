@@ -32,14 +32,21 @@ def pose2point(pose, grid):
 #passes back a list of Pose wayPoints to get from star to end
 def aStar(start, goal, grid):
     global cost_map
-
+    
     # convert from poses to points + init orientation (1,2,3, or 4)
     startPoint = pose2point(start,grid)
     goalPoint = pose2point(goal,grid)
     quat = [start.orientation.x, start.orientation.y, start.orientation.z, start.orientation.w]
     roll, pitch, yaw = euler_from_quaternion(quat)
     initYaw = yaw  # returns the yaw
+    
+    cutoffVal = 25
+    if grid.getVal(startPoint.x,startPoint.y) > cutoffVal:
+        cutoffVal = grid.getVal(startPoint.x,startPoint.y)
 
+    if grid.getVal(goalPoint.x,goalPoint.y) > cutoffVal:
+        return None
+   
     # convert from euler yaw to 1,2,3,4, as used by node
     initOri = round(initYaw / (math.pi / 2)) + 1
     if initOri <= 0: initOri += 4
@@ -54,7 +61,7 @@ def aStar(start, goal, grid):
 
     #keep searching the frontiers based on the lowest cost until goal is reached
     while (not curNode.point.equals(goalPoint)):
-        nodeKids = curNode.createNewNodes(nodes, grid, 25) #create new nodes that are neighbors to current node
+        nodeKids = curNode.createNewNodes(nodes, grid, cutoffVal) #create new nodes that are neighbors to current node
         for kid in nodeKids:
             # add the nodes to frontier based on cost
             for ind in range(0,len(frontier)):
@@ -90,7 +97,7 @@ def aStar(start, goal, grid):
     ways.header.stamp = rospy.get_rostime()
     wayPoints.append(node2pose(curNode,grid))
 
-    distCount = 2.0/grid.map_info.resolution
+    distCount = 1.0/grid.map_info.resolution
     count = 0
     #generates waypoints at each rotation location
     while (not curNode.prevNode == None):
