@@ -25,13 +25,13 @@ class Navigate:
     distThresh = 0.0
 
     # PID Constants
-    turnKp = 2.0
-    turnKi = 0.005
-    turnKd = 0.0
+    turnKp = 1
+    turnKi = 4
+    turnKd = 0.01
 
     driveKp = .5
-    driveKi = 0.0
-    driveKd = 0.05
+    driveKi = 0.1
+    driveKd = 0.0025
 
     curTurnDelta = 0.0
     prevTurnDelta = 0.0
@@ -52,14 +52,16 @@ class Navigate:
     def pubTwist(self):
         global pub
         msg = Twist()
-        xVal = self.linVel
-        if xVal > .5:
-            xVal = .5
-        msg.linear.x = self.linVel
-        aVal = self.angVel
-        if aVal > .5:
-            aVal = .5
-        msg.angular.z = self.angVel
+        linVel = self.linVel
+        if linVel > .3:
+            linVel = .3
+        msg.linear.x = linVel
+        aVel = self.angVel
+        if aVel > .5:
+             aVel = .5
+        elif aVel < -.5:
+            aVel = -.5
+        msg.angular.z = aVel
         pub.publish(msg)
 
 
@@ -97,7 +99,7 @@ class Navigate:
     #This function accepts a speed and a distance for the robot to move in a straight line
     def driveStraight(self, dist):
 
-        timeDelta = 0.1
+        timeDelta = 0.05
 
         #initialize position
         goalX = self.goal.position.x
@@ -113,14 +115,14 @@ class Navigate:
             self.goalAngle = math.atan2(goalY - self.cur.position.y, goalX - self.cur.position.x)
             atGoal = (self.curDriveDelta <= self.distThresh)
 
-            #print str(self.curDriveDelta)
+            print "driving: " + str(self.curDriveDelta)
 
             #keep going at given speed
             self.linVel = (self.driveKp * self.curDriveDelta + self.driveKi * self.totalDriveDelta * timeDelta - self.driveKd * abs(self.prevDriveDelta - self.curDriveDelta) / timeDelta)
             rospy.sleep(timeDelta)
 
         #stop when goal is reached
-        print "got there"
+        print "got to waypoint"
         self.resetPID()
         self.linVel = 0.0
         self.angVel = 0.0
@@ -129,17 +131,17 @@ class Navigate:
     #Accepts an angle and makes the robot rotate around it. Assume there's no reason for
     def rotateTo(self, angle):
         self.goalAngle = angle
-        timeRes = 0.1
+        timeRes = 0.05
+
+        print "starting to rotate"
 
         #initialize position
         atGoal = False
 
         self.curTurnDelta = math.atan2(math.sin(self.goalAngle - self.getCurrentAngle()), math.cos(self.goalAngle - self.getCurrentAngle()))
 
-        print self.curTurnDelta
-        rospy.sleep(0.01)
-
         while (not atGoal and not rospy.is_shutdown()):
+            print "turning: " + str(self.curTurnDelta)
             atGoal = (abs(self.curTurnDelta) <= self.angleThresh)
 
             self.linVel = 0.0
@@ -177,7 +179,7 @@ class Navigate:
         #print str(self.getCurrentAngle()) + "  " + str(self.goalAngle)
 
         self.prevTurnDelta = self.curTurnDelta
-        timeDelta = .01 #abs(event.current_real - event.last_real)
+        timeDelta = .05 #abs(event.current_real - event.last_real)
         self.curTurnDelta = math.atan2(math.sin(self.goalAngle - self.getCurrentAngle()), math.cos(self.goalAngle - self.getCurrentAngle()))
         self.totalTurnDelta += self.curTurnDelta * timeDelta
         self.angVel = (self.turnKp * self.curTurnDelta + self.turnKi * self.totalTurnDelta * timeDelta - self.turnKd * abs(self.prevTurnDelta - self.curTurnDelta) / timeDelta)
@@ -217,8 +219,8 @@ def odomCallback(event):
     navBot.cur.orientation = event.pose.pose.orientation
 
     sendPose = PoseStamped()
-    sendPose.header.frame_id = 'odom'
-    sendPose.header.stamp = rospy.Time.now()
+    sendPose.header = event.header
+    sendPose.header.stamp = rospy.Time(0)
     sendPose.pose = event.pose.pose
 
     pose_pub.publish(sendPose)
@@ -246,7 +248,7 @@ def navToPose(goal):
 
     # drive to each waypoint in the path
     for p in path.poses:
-        print "naving to pose"
+        print "naving to a new waypoint"
         localPathServ = getLocalPath(navBot.cur, p.pose)
         localPath = localPathServ.path
         if (len(localPath.poses) == 0):
@@ -293,7 +295,7 @@ if __name__ == '__main__':
     # Use this command to make the program wait for some seconds
     rospy.sleep(rospy.Duration(1, 0))
 
-    rospy.Timer(rospy.Duration(.01), navBot.updatePID)
+    rospy.Timer(rospy.Duration(.05), navBot.updatePID)
 
 
     print "Starting navigation node"

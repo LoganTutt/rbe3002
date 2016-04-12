@@ -234,7 +234,7 @@ def calcPath(req):
 
     start = req.start
     goal = req.end
-    path = calcWaypoints(start,goal, robot_map, global_way_pub)
+    path = calcWaypoints(start, goal, robot_map, global_way_pub)
 
     cost_map.publish(global_costmap_pub)
     cost_map=None
