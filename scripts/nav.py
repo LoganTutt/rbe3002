@@ -18,6 +18,7 @@ class Navigate:
     start = Pose()
     goal = Pose()
     cur = Pose()
+    goalAngle = 0.0
     topAngVel = 0.0
     topLinVel = 0.0
     angVel = 0.0
@@ -55,11 +56,10 @@ class Navigate:
         self.goal = goal.pose
 
         #get current pose and orientation
-        curT = self.cur.orientation.z
         curX = self.cur.position.x
         curY = self.cur.position.y
 
-        assert isinstance(goal,PoseStamped)
+        assert isinstance(self.goal,Pose)
 
         #get goal pose and orientation
         quat = self.goal.orientation
@@ -72,13 +72,17 @@ class Navigate:
         dX = goalX - curX
         dY = goalY - curY
 
-
-
         self.rotateTo(math.atan2(dY,dX))
 
         self.driveStraight(math.sqrt(dX**2 + dY**2))
 
-        self.rotateTo(goalT)
+
+    def getCurrentAngle(self):
+
+        quat = self.cur.orientation
+        q = [quat.x, quat.y, quat.z, quat.w]
+        roll, pitch, yaw = euler_from_quaternion(q)
+        return yaw
 
 
     #This function accepts a speed and a distance for the robot to move in a straight line
@@ -106,14 +110,15 @@ class Navigate:
 
     #Accepts an angle and makes the robot rotate around it. Assume there's no reason for
     def rotateTo(self, angle):
-
+        self.goalAngle = angle
         timeRes = 0.1
 
         #initialize position
         atGoal = False
 
         while (not atGoal and not rospy.is_shutdown()):
-
+            self.prevTurnDelta = self.curTurnDelta
+            self.curTurnDelta = abs(math.atan2(math.sin(self.getCurrentAngle() - self.goalAngle),math.cos(self.getCurrentAngle() - self.goalAngle)))
             self.totalTurnDelta += self.curTurnDelta
             atGoal = (abs(self.curTurnDelta) <= abs(self.topAngVel*timeRes)/2)
 
@@ -121,6 +126,7 @@ class Navigate:
             rospy.sleep(timeRes)
 
         #stop when goal is reached
+        print "got to the angle"
         self.resetPID()
 
 
@@ -146,11 +152,12 @@ class Navigate:
 
     def updatePID(self, event):
 
-        timeDelta = rospy.Duration(0.01) #abs(event.current_real - event.last_real)
-        curDelta = math.atan2(math.sin(self.goal.orientation.z - self.cur.orientation.z), math.cos(self.goal.orientation.z - self.cur.orientation.z))
-        self.totalTurnDelta += curDelta
+        print str(self.getCurrentAngle()) + "  " + str(self.goalAngle)
 
-        PID = (self.turnKp * curDelta + self.turnKi * self.totalTurnDelta - self.turnKd * abs(self.prevTurnDelta - curDelta)) * timeDelta.nsecs
+        timeDelta = .01 #abs(event.current_real - event.last_real)
+        curDelta = math.atan2(math.sin(self.goalAngle - self.getCurrentAngle()), math.cos(self.goalAngle - self.getCurrentAngle()))
+        self.totalTurnDelta += curDelta * timeDelta
+        self.angVel = (self.turnKp * curDelta + self.turnKi * self.totalTurnDelta - self.turnKd * abs(self.prevTurnDelta - curDelta) / timeDelta)
         self.prevTurnDelta = curDelta
 
         self.pubTwist()
@@ -178,11 +185,7 @@ def odomCallback(event):
 
     navBot.cur.position.x = event.pose.pose.position.x
     navBot.cur.position.y = event.pose.pose.position.y
-
-    rot_in_quat = event.pose.pose.orientation
-    rot_array = [rot_in_quat.x,rot_in_quat.y,rot_in_quat.z,rot_in_quat.w]
-    roll, pitch, yaw = euler_from_quaternion(rot_array)
-    navBot.cur.orientation.z = yaw
+    navBot.cur.orientation = event.pose.pose.orientation
 
     sendPose = PoseStamped()
     sendPose.header.frame_id = 'map'
