@@ -152,10 +152,16 @@ def mapCallback(data_map):
 
     print "recieved map"
     robot_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info)
-    cost_map = Grid(data_map.info.width, data_map.info.height, [0]*len(data_map.data),data_map.info)
+    #cost_map = Grid(data_map.info.width, data_map.info.height, [0]*len(data_map.data),data_map.info)
 
 def localMapCallback(data_map):
-    pass
+    global local_map
+    global cost_map
+
+    assert isinstance(data_map,OccupancyGrid)
+
+    print "recieved local map"
+    local_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info)
 
 #goalStamped is a PoseStamped
 #finds the path to goalStamped and returns the waypoints to reach there
@@ -165,7 +171,7 @@ def pathCallback(goalStamped, grid):
     print "Got start and goal poses"
 
 
-    cost_map = Grid(cost_map.width, cost_map.height, [0]*len(cost_map.data), cost_map.map_info)
+    cost_map = Grid(grid.width, grid.height, [0]*len(grid.data), grid.map_info)
 
     goal = goalStamped.pose #get the pose from the stamped pose
 
