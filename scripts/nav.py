@@ -37,6 +37,9 @@ def navToPose(goal):
     #get path from A*
     globalPathServ = getGlobalPath(pose, goal.pose)
     path = globalPathServ.path
+    if(path == None):
+        print "point not navigatable"
+        return
     print "started driving"
 
     #drive to each waypoint in the path
@@ -44,8 +47,13 @@ def navToPose(goal):
         print "naving to pose"
         localPathServ = getLocalPath(pose, p.pose)
         localPath = localPathServ.path
+        if(localPath == None):
+            print "no possible path"
+            return
         for tempPose in localPath.poses:
             goToPose(p)
+    
+    print "finished Navigation"
 
 
 #drives to the pose of goal

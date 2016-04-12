@@ -103,6 +103,8 @@ def aStar(start, goal, grid,wayPub):
     temp.z = path.cell_height * .25 #offset above costmap
     ways.cells.append(temp)
 
+    curNode = curNode.prevNode
+
     distCount = 1.0/grid.map_info.resolution
     count = 0
     #generates waypoints at each rotation location
@@ -216,36 +218,6 @@ def startCallback(startPose):
     startPose_pub.publish(start_stamped_pose)
 
 
-##publishes the cost_map
-#def publishCostMap():
-#    global cost_map
-#    costGrid = OccupancyGrid()
-#
-#
-#    costGrid.header.frame_id = 'map'
-#    costGrid.info = map_info
-#    temparr = copy.deepcopy(cost_map.data) #protect ourselves from volitility
-#
-#    #map cost_map to between 0 and 127 for fancy colors in rviz
-#    maxVal = max(temparr)
-#
-#    minVal = float('inf')
-#    for cost in temparr:
-#        if (not (cost == 0) and (cost < minVal)): minVal = cost
-#
-#    factor = 100.0/(maxVal - minVal)
-#
-#    if(maxVal == minVal): return
-#
-#    # costGrid.data = [(int((i - minVal) * factor) if (i != 0) else 0) for i in cost_map.data]
-#    costGrid.data = []
-#    for i in temparr:
-#        if(i!=0):
-#            costGrid.data.append(int((i - minVal) * factor))
-#        else:
-#            costGrid.data.append(0)
-#
-#    costMap_pub.publish(costGrid)
 
 #service handler. Takes in a start and end pose then returns a path
 def calcPath(req):
