@@ -214,16 +214,20 @@ def odomCallback(event):
     assert isinstance(navBot, Navigate)
     assert isinstance(event, Odometry)
 
-    navBot.cur.position.x = event.pose.pose.position.x
-    navBot.cur.position.y = event.pose.pose.position.y
-    navBot.cur.orientation = event.pose.pose.orientation
+    
 
-    sendPose = PoseStamped()
-    sendPose.header = event.header
-    sendPose.header.stamp = rospy.Time(0)
-    sendPose.pose = event.pose.pose
+    robPose = PoseStamped()
+    robPose.header = event.header
+    robPose.header.stamp = rospy.Time(0)
+    robPose.pose = event.pose.pose
 
-    pose_pub.publish(sendPose)
+    robPose = transformer.transformPose('map',robPose)
+
+    navBot.cur.position.x = robPose.pose.position.x
+    navBot.cur.position.y = robPose.pose.position.y
+    navBot.cur.orientation = robPose.pose.orientation
+
+    pose_pub.publish(robPose)
 
 
 def getAngleFromPose(pose):
@@ -237,8 +241,6 @@ def getAngleFromPose(pose):
 # creates a path and uses that path to move to the location
 def navToPose(goal):
     # get path from A*
-    goal.header.stamp = rospy.Time(0)
-    goal = transformer.transformPose('odom',goal)
     globalPathServ = getGlobalPath(navBot.cur, goal.pose)
     path = globalPathServ.path
     if (len(path.poses) == 0):
@@ -281,6 +283,8 @@ if __name__ == '__main__':
     navBot = Navigate(.01, .01) #pass these the resolutions that you want.
 
     transformer = tf.TransformListener()
+
+    rospy.sleep(1)
 
     pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, None, queue_size=10) # Publisher for commanding robot motion
     pose_pub = rospy.Publisher('/robot_pose', PoseStamped, None, queue_size=10)
