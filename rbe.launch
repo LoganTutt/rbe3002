@@ -1,6 +1,5 @@
 <launch>
-    <node name="nav" pkg="rbe3002" type="nav.py" output="screen">
-    </node>
+    <node name="nav" pkg="rbe3002" type="nav.py" output="screen"/>
 
     <node name="planner" pkg="rbe3002" type="planner.py" output="screen">
     </node>
