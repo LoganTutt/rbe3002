@@ -145,7 +145,7 @@ def aStar(start, goal, grid, wayPub):
 
     curNode = curNode.prevNode
 
-    distCount = 1.5/grid.map_info.resolution
+    distCount = .75/grid.map_info.resolution
     count = 0
     #generates waypoints at each rotation location
     while (curNode != None and not curNode.prevNode == None):
