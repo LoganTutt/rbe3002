@@ -15,9 +15,9 @@ wheel_rad = 3.5 / 100.0 #cm to m
 wheel_base = 23.0 / 100.0 #cm to m
 
 class Navigate:
-    start = Pose()
-    goal = Pose()
-    cur = Pose()
+    start = PoseStamped()
+    goal = PoseStamped()
+    cur = PoseStamped()
     goalAngle = 0.0
     angVel = 0.0
     linVel = 0.0
@@ -66,26 +66,28 @@ class Navigate:
 
 
     #drives to the pose of goal
+    #goal is a poseStamped
     def goToPose(self, goal):
 
         self.start = self.cur
-        self.goal = goal.pose
+        self.goal = goal
 
         #get current pose and orientation
-        curX = self.cur.position.x
-        curY = self.cur.position.y
+        tempCur = transformer.transformPose(self.goal.header.frame_id,self.cur)
+        curX = self.cur.pose.position.x
+        curY = self.cur.pose.position.y
 
-        assert isinstance(self.goal,Pose)
+        assert isinstance(self.goal,PoseStamped)
 
-        goalX = self.goal.position.x
-        goalY = self.goal.position.y
+        goalX = self.goal.pose.position.x
+        goalY = self.goal.pose.position.y
 
         dX = goalX - curX
         dY = goalY - curY
 
         self.rotateTo(math.atan2(dY,dX))
 
-        self.driveStraight(math.sqrt(dX**2 + dY**2))
+        self.driveStraight()
 
 
     def getCurrentAngle(self):
@@ -97,22 +99,25 @@ class Navigate:
 
 
     #This function accepts a speed and a distance for the robot to move in a straight line
-    def driveStraight(self, dist):
+    def driveStraight(self):
 
         timeDelta = 0.05
 
         #initialize position
-        goalX = self.goal.position.x
-        goalY = self.goal.position.y
+        goalX = self.goal.pose.position.x
+        goalY = self.goal.pose.position.y
         atGoal = False
 
         print "driving with PID"
 
         while (not atGoal and not rospy.is_shutdown()):
             self.prevDriveDelta = self.curDriveDelta
-            self.curDriveDelta = math.sqrt((goalX - self.cur.position.x)**2 + (goalY - self.cur.position.y)**2)
+            tempCur = transformer.transformPose(self.goal.header.frame_id,self.cur)
+            curX = tempCur.pose.position.x
+            curY = tempCur.pose.position.y
+            self.curDriveDelta = math.sqrt((goalX - curX)**2 + (goalY - curY)**2)
             self.totalDriveDelta += self.curDriveDelta
-            self.goalAngle = math.atan2(goalY - self.cur.position.y, goalX - self.cur.position.x)
+            self.goalAngle = math.atan2(goalY - curY, goalX - curX)
             atGoal = (self.curDriveDelta <= self.distThresh)
 
             print "driving: " + str(self.curDriveDelta)
@@ -221,11 +226,11 @@ def odomCallback(event):
     robPose.header.stamp = rospy.Time(0)
     robPose.pose = event.pose.pose
 
-    robPose = transformer.transformPose('map',robPose)
+    navbot.cur = transformer.transformPose('map',robPose)
 
-    navBot.cur.position.x = robPose.pose.position.x
-    navBot.cur.position.y = robPose.pose.position.y
-    navBot.cur.orientation = robPose.pose.orientation
+#    navBot.cur.position.x = robPose.pose.position.x
+#    navBot.cur.position.y = robPose.pose.position.y
+#    navBot.cur.orientation = robPose.pose.orientation
 
     pose_pub.publish(robPose)
 

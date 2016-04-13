@@ -60,7 +60,7 @@ def node2pose(node,grid):
     poseStamped.header.frame_id = grid.frame_id
     poseStamped.header.stamp = rospy.Time(0)
 
-    pose = transformer.transformPose('map',poseStamped).pose
+    #pose = transformer.transformPose('map',poseStamped).pose
     return pose
 
 
