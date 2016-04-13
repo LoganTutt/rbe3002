@@ -109,35 +109,36 @@ class Grid:
     def setVal(self,x,y,val):
         self.data[x+y*self.width] = val
 
-    def publish(self,publisher):
+    def publish(self, publisher, real = False):
         costGrid = OccupancyGrid()
-
 
         costGrid.header.frame_id = self.frame_id
         costGrid.header.stamp = rospy.Time.now()
         costGrid.info = self.map_info
         temparr = copy.deepcopy(self.data) #protect ourselves from volitility
 
-        #map cost_map to between 0 and 127 for fancy colors in rviz
-        maxVal = max(temparr)
+        if not real:
+            #map cost_map to between 0 and 127 for fancy colors in rviz
+            maxVal = max(temparr)
 
-        minVal = float('inf')
-        for cost in temparr:
-            if (not (cost == 0) and (cost < minVal)): minVal = cost
-        
-        minVal *= 1.01
-        
-        factor = 90.0/(maxVal - minVal)
+            minVal = float('inf')
+            for cost in temparr:
+                if (not (cost == 0) and (cost < minVal)): minVal = cost
 
-        if(maxVal == minVal): return
+            minVal *= 1.01
 
-        # costGrid.data = [(int((i - minVal) * factor) if (i != 0) else 0) for i in cost_map.data]
-        costGrid.data = []
-        for i in temparr:
-            if(i!=0):
-                costGrid.data.append(int((i - minVal) * factor))
-            else:
-                costGrid.data.append(0)
+            factor = 90.0/(maxVal - minVal)
+
+            if(maxVal == minVal): return
+
+            # costGrid.data = [(int((i - minVal) * factor) if (i != 0) else 0) for i in cost_map.data]
+            costGrid.data = []
+            for i in temparr:
+                if(i!=0):
+                    costGrid.data.append(int((i - minVal) * factor))
+                else:
+                    costGrid.data.append(0)
+        else: costGrid.data = temparr
 
         publisher.publish(costGrid)
 

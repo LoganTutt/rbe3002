@@ -64,11 +64,10 @@ def node2pose(node,grid):
     return pose
 
 
-
 #calculates and returns path to the goal point
 #start and end are poses
 #passes back a list of Pose wayPoints to get from star to end
-def aStar(start, goal, grid,wayPub):
+def aStar(start, goal, grid, wayPub):
     global cost_map
     
     # convert from poses to points + init orientation (1,2,3, or 4)
@@ -175,7 +174,7 @@ def aStar(start, goal, grid,wayPub):
 
 
 #finds the path to goal from start and returns the waypoints to reach there
-def calcWaypoints(start,goal, grid, wayPub):
+def calcWaypoints(start, goal, grid, wayPub):
     global cost_map
 
     print "Got start and goal poses"
@@ -184,7 +183,9 @@ def calcWaypoints(start,goal, grid, wayPub):
 
     dao = aStar(start, goal, grid, wayPub)       #dao = way in Chinese
 
-    if dao == None: return
+    if not dao:
+        print "No path found"
+        return
 
     way = Path()
     for waypoint in dao:
@@ -192,64 +193,62 @@ def calcWaypoints(start,goal, grid, wayPub):
         tempPoseSt.pose = waypoint
         way.poses.append(tempPoseSt)
 
+    print "findeh de path"
     waypoints_pub.publish(way)
     return way
-
-    print "findeh de path"
-
 
 
 #subscriber callbacks
 
 #data_map is an OccupancyGrid
 #stores the incoming global map
-def mapCallback(data_map):
-    global robot_map
-    global cost_map
+def globalMapCallback(data_map):
+    global global_map
+    global global_current_map_pub
 
     assert isinstance(data_map,OccupancyGrid)
 
-    print "recieved map"
-    robot_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info,data_map.header.frame_id)
-    #cost_map = Grid(data_map.info.width, data_map.info.height, [0]*len(data_map.data),data_map.info)
-
-
+    print "recieved global map"
+    global_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info, data_map.header.frame_id)
+    global_map.publish(global_current_map_pub)
 
 #data_map is an OccupancyGrid
 #stores the incoming local map
 def localMapCallback(data_map):
     global local_map
-    global cost_map
+    global local_current_map_pub
 
     assert isinstance(data_map,OccupancyGrid)
 
     print "recieved local map"
     local_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info,data_map.header.frame_id)
+    print " -> start publish"
+    local_map.publish(local_current_map_pub)
+    print " -> end publish"
 
 
 
 #service handler. Takes in a start and end pose then returns a path
-def calcPath(req):
+def globalCalcPath(req):
     global cost_map
 
     start = req.start
     goal = req.end
-    path = calcWaypoints(start, goal, robot_map, global_way_pub)
+    path = calcWaypoints(start, goal, global_map, global_way_pub)
 
     cost_map.publish(global_costmap_pub)
     cost_map=None
 
-    
     return CalcPathResponse(path)
 
 
 #service handler. Takes in a start and end pose then returns a path
 def localCalcPath(req):
+
     start = req.start
     goal = req.end
-    path = calcWaypoints(start,goal, local_map, way_pub)
+    path = calcWaypoints(start, goal, local_map, local_way_pub)
 
-    
     return CalcPathResponse(path)
     
 
@@ -258,45 +257,50 @@ def run():
 
     rospy.init_node('planning_node')
 
-    global robot_map
+    global global_map
     global cost_map
 
     #make publishers global so that they can be used anywhere
-    global costMap_pub
+    global local_costmap_pub
     global path_pub
     global waypoints_pub
-    global way_pub
+    global local_way_pub
     global global_costmap_pub
     global global_way_pub
     global transformer
+    global local_current_map_pub
+    global global_current_map_pub
     
     cost_map = None
 
     
     transformer = tf.TransformListener()
 
-    #subscribers
-    grid_sub = rospy.Subscriber('/move_base/global_costmap/costmap',OccupancyGrid, mapCallback, queue_size = 1)
-    local_grid_sub = rospy.Subscriber('/move_base/local_costmap/costmap',OccupancyGrid, localMapCallback, queue_size = 1)
-
     #publishers
-    costMap_pub = rospy.Publisher('/robot_cost_map', OccupancyGrid, queue_size=1)
+    local_costmap_pub = rospy.Publisher('/robot_cost_map', OccupancyGrid, queue_size=1)
+    local_way_pub = rospy.Publisher('/robot_waypoints', GridCells, queue_size=1)
+    local_current_map_pub = rospy.Publisher('/local_cur_map', OccupancyGrid, queue_size=1)
     global_costmap_pub = rospy.Publisher('/global_cost_map', OccupancyGrid, queue_size=1)
-    path_pub = rospy.Publisher('/robot_path', GridCells, queue_size=1)
-    way_pub = rospy.Publisher('/robot_waypoints', GridCells, queue_size=1)
     global_way_pub = rospy.Publisher('/global_waypoints', GridCells, queue_size=1)
+    global_current_map_pub = rospy.Publisher('/global_cur_map', OccupancyGrid, queue_size=1)
+
+    # subscribers
+    global_grid_sub = rospy.Subscriber('/move_base/global_costmap/costmap', OccupancyGrid, globalMapCallback, queue_size=1)
+    local_grid_sub = rospy.Subscriber('/move_base/local_costmap/costmap', OccupancyGrid, localMapCallback, queue_size=1)
+
+    path_pub = rospy.Publisher('/robot_path', GridCells, queue_size=1)
     waypoints_pub = rospy.Publisher('/waypoints', Path, queue_size=1)
 
-    global_serv = rospy.Service('global_path',CalcPath, calcPath)
+    global_serv = rospy.Service('global_path', CalcPath, globalCalcPath)
     local_serv = rospy.Service('local_path',CalcPath, localCalcPath)
 
     rospy.sleep(1)
     print "Ready"
 
-    #this handles updating the cost_map
+    #this handles updating the local_cost_map
     while not rospy.is_shutdown():
         if (cost_map != None):
-            cost_map.publish(costMap_pub)
+            cost_map.publish(local_costmap_pub)
         rospy.sleep(.125)
 
 

@@ -25,13 +25,13 @@ class Navigate:
     distThresh = 0.0
 
     # PID Constants
-    turnKp = 1
-    turnKi = 4
-    turnKd = 0.01
+    turnKp = 2#1.25
+    turnKi = 0.0#3
+    turnKd = 0.0#0.1
 
-    driveKp = .5
-    driveKi = 0.1
-    driveKd = 0.0025
+    driveKp = .5#.5
+    driveKi = 0.0#0.1
+    driveKd = 0.0#0.0025
 
     curTurnDelta = 0.0
     prevTurnDelta = 0.0
