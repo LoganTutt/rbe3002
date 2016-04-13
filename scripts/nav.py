@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import rospy, math, tf
+import rospy, math, tf, numpy
 from kobuki_msgs.msg import BumperEvent
-from std_msgs.msg import String
+from std_msgs.msg import String, Bool
 from geometry_msgs.msg import Twist, Pose, PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry, Path
 from geometry_msgs.msg import PoseStamped
@@ -25,8 +25,8 @@ class Navigate:
     distThresh = 0.0
 
     # PID Constants
-    turnKp = 1
-    turnKi = 4
+    turnKp = 2
+    turnKi = 0.0
     turnKd = 0.01
 
     driveKp = .5
@@ -52,15 +52,9 @@ class Navigate:
     def pubTwist(self):
         global pub
         msg = Twist()
-        linVel = self.linVel
-        if linVel > .3:
-            linVel = .3
+        linVel = numpy.clip(self.linVel,0,0.3)
         msg.linear.x = linVel
-        aVel = self.angVel
-        if aVel > .5:
-             aVel = .5
-        elif aVel < -.5:
-            aVel = -.5
+        aVel =numpy.clip(self.angVel,-0.5,0.5)
         msg.angular.z = aVel
         pub.publish(msg)
 
@@ -117,8 +111,7 @@ class Navigate:
 
             print "driving: " + str(self.curDriveDelta)
 
-            #keep going at given speed
-            self.linVel = (self.driveKp * self.curDriveDelta + self.driveKi * self.totalDriveDelta * timeDelta - self.driveKd * abs(self.prevDriveDelta - self.curDriveDelta) / timeDelta)
+            self.linVel = (self.driveKp * self.curDriveDelta + self.driveKi * self.totalDriveDelta * timeDelta - self.driveKd * abs(self.prevDriveDelta - self.curDriveDelta) / timeDelta)*(1-abs(self.angVel)/0.5)
             rospy.sleep(timeDelta)
 
         #stop when goal is reached
@@ -182,7 +175,8 @@ class Navigate:
         timeDelta = .05 #abs(event.current_real - event.last_real)
         self.curTurnDelta = math.atan2(math.sin(self.goalAngle - self.getCurrentAngle()), math.cos(self.goalAngle - self.getCurrentAngle()))
         self.totalTurnDelta += self.curTurnDelta * timeDelta
-        self.angVel = (self.turnKp * self.curTurnDelta + self.turnKi * self.totalTurnDelta * timeDelta - self.turnKd * abs(self.prevTurnDelta - self.curTurnDelta) / timeDelta)
+        
+	self.angVel = (self.turnKp * self.curTurnDelta + self.turnKi * self.totalTurnDelta * timeDelta - self.turnKd * abs(self.prevTurnDelta - self.curTurnDelta) / timeDelta)
 
         self.pubTwist()
 
@@ -251,6 +245,7 @@ def navToPose(goal):
     # drive to each waypoint in the path
     for p in path.poses:
         print "naving to a new waypoint"
+        rospy.sleep(1)
         localPathServ = getLocalPath(navBot.cur, p.pose)
         localPath = localPathServ.path
         if (len(localPath.poses) == 0):
@@ -264,6 +259,9 @@ def navToPose(goal):
 
     print "finished Navigation"
 
+def haltNav(halt):
+   global stopNav
+   stopNav = halt
 
 # This is the program's main function
 if __name__ == '__main__':
@@ -280,7 +278,7 @@ if __name__ == '__main__':
 
     global navBot
 
-    navBot = Navigate(.01, .01) #pass these the resolutions that you want.
+    navBot = Navigate(.1, .1) #pass these the resolutions that you want.
 
     transformer = tf.TransformListener()
 
@@ -292,6 +290,7 @@ if __name__ == '__main__':
     #bumper_sub = rospy.Subscriber('/mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
     odom_sub = rospy.Subscriber('/odom',Odometry,odomCallback,queue_size=1)
     goal_sub = rospy.Subscriber('/this_is_rviz', PoseStamped, navToPose, queue_size=1)
+    stop_sub = rospy.Subscriber('/odom/halt', Bool, haltNav,queue_size=1)
    
     getGlobalPath = rospy.ServiceProxy('global_path', CalcPath)
     getLocalPath = rospy.ServiceProxy('local_path', CalcPath)
