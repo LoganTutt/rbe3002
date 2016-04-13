@@ -92,7 +92,7 @@ class Navigate:
 
     def getCurrentAngle(self):
 
-        quat = self.cur.orientation
+        quat = self.cur.pose.orientation
         q = [quat.x, quat.y, quat.z, quat.w]
         roll, pitch, yaw = euler_from_quaternion(q)
         return yaw
@@ -226,7 +226,7 @@ def odomCallback(event):
     robPose.header.stamp = rospy.Time(0)
     robPose.pose = event.pose.pose
 
-    navbot.cur = transformer.transformPose('map',robPose)
+    navBot.cur = transformer.transformPose('map',robPose)
 
 #    navBot.cur.position.x = robPose.pose.position.x
 #    navBot.cur.position.y = robPose.pose.position.y
@@ -246,7 +246,7 @@ def getAngleFromPose(pose):
 # creates a path and uses that path to move to the location
 def navToPose(goal):
     # get path from A*
-    globalPathServ = getGlobalPath(navBot.cur, goal.pose)
+    globalPathServ = getGlobalPath(navBot.cur.pose, goal.pose)
     path = globalPathServ.path
     if (len(path.poses) == 0):
         print "point not navigatable"
@@ -256,7 +256,7 @@ def navToPose(goal):
     # drive to each waypoint in the path
     for p in path.poses:
         print "naving to a new waypoint"
-        localPathServ = getLocalPath(navBot.cur, p.pose)
+        localPathServ = getLocalPath(navBot.cur.pose, p.pose)
         localPath = localPathServ.path
         if (len(localPath.poses) == 0):
             print "no possible path"

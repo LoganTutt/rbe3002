@@ -61,12 +61,11 @@ def node2pose(node,grid):
     poseStamped.header.stamp = rospy.Time(0)
 
     #pose = transformer.transformPose('map',poseStamped).pose
-    return pose
-
+    return poseStamped 
 
 #calculates and returns path to the goal point
 #start and end are poses
-#passes back a list of Pose wayPoints to get from star to end
+#passes back a list of PoseStamped wayPoints to get from star to end
 def aStar(start, goal, grid, wayPub):
     global cost_map
     
@@ -189,9 +188,7 @@ def calcWaypoints(start, goal, grid, wayPub):
 
     way = Path()
     for waypoint in dao:
-        tempPoseSt = PoseStamped()
-        tempPoseSt.pose = waypoint
-        way.poses.append(tempPoseSt)
+        way.poses.append(waypoint)
 
     print "findeh de path"
     waypoints_pub.publish(way)
