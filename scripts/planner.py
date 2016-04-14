@@ -156,7 +156,8 @@ def aStar(start, goal, grid, wayPub):
             ways.cells.append(temp)
             count = 0
         count+=1
-    wayPoints.append(node2pose(nodes[-1], grid))
+    if nodes:
+        wayPoints.append(node2pose(nodes[-1], grid))
 
     path_pub.publish(path)
     wayPub.publish(ways)

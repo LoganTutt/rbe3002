@@ -174,8 +174,6 @@ class Navigate:
 
     def updatePID(self, event):
 
-        # print str(self.getCurrentAngle()) + "  " + str(self.goalAngle)
-
         self.prevTurnDelta = self.curTurnDelta
         timeDelta = .05  # abs(event.current_real - event.last_real)
         self.curTurnDelta = math.atan2(math.sin(self.goalAngle - self.getCurrentAngle()),
@@ -259,12 +257,13 @@ def navToPose(goal):
             navBot.goToPose(localPath.poses[0])
         else:
             print " - goal not navigable, ending navigation"
-            return
+            break
 
         if len(globalPath.poses) == 1 and len(localPath.poses) == 1:
-            navBot.rotateTo(getAngleFromPose(goal.pose))
             print " Finished All Navigation!"
-            return
+            break
+    navBot.rotateTo(getAngleFromPose(goal.pose))
+
 
 
 # This is the program's main function
@@ -282,7 +281,7 @@ if __name__ == '__main__':
 
     global navBot
 
-    navBot = Navigate(.1, .1)  # pass these the resolutions that you want.
+    navBot = Navigate(.1, .025)  # pass these the resolutions that you want.
 
     transformer = tf.TransformListener()
 
