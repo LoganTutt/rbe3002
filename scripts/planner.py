@@ -195,7 +195,9 @@ def globalMapCallback(data_map):
     global global_map
     global global_current_map_pub
 
-    assert isinstance(data_map,OccupancyGrid)
+    assert isinstance(data_map, OccupancyGrid)
+
+    global_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info, data_map.header.frame_id)
 
 
 #data_map is an OccupancyGrid
@@ -204,7 +206,9 @@ def localMapCallback(data_map):
     global local_map
     global local_current_map_pub
 
-    assert isinstance(data_map,OccupancyGrid)
+    assert isinstance(data_map, OccupancyGrid)
+
+    local_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info, data_map.header.frame_id)
 
 
 #service handler. Takes in a start and end pose then returns a path
@@ -245,10 +249,11 @@ def printUpdatedMaps(event):
     global local_map
     global global_map
 
-    # print "recieved and updated local map"
-    local_map.publish(local_current_map_pub)
-    # print "recieved global updated map"
-    global_map.publish(global_current_map_pub)
+    if local_map and global_map:
+        # print "recieved and updated local map"
+        local_map.publish(local_current_map_pub)
+        # print "recieved global updated map"
+        # global_map.publish(global_current_map_pub)
 
 
 def run():
@@ -283,25 +288,23 @@ def run():
     global_costmap_pub = rospy.Publisher('/global_cost_map', OccupancyGrid, queue_size=1)
     global_way_pub = rospy.Publisher('/global_waypoints', GridCells, queue_size=1)
     global_current_map_pub = rospy.Publisher('/global_cur_map', OccupancyGrid, queue_size=1)
+    path_pub = rospy.Publisher('/robot_path', GridCells, queue_size=1)
+    waypoints_pub = rospy.Publisher('/waypoints', Path, queue_size=1)
 
     # subscribers
     global_grid_sub = rospy.Subscriber('/move_base/global_costmap/costmap', OccupancyGrid, globalMapCallback, queue_size=1)
-
     local_grid_sub = rospy.Subscriber('/move_base/local_costmap/costmap', OccupancyGrid, localMapCallback, queue_size=1)
-
-    path_pub = rospy.Publisher('/robot_path', GridCells, queue_size=1)
-    waypoints_pub = rospy.Publisher('/waypoints', Path, queue_size=1)
 
     local_update_sub = rospy.Subscriber('/move_base/local_costmap/costmap_updates', OccupancyGridUpdate, localUpdateCallback, queue_size=1)
     global_update_sub = rospy.Subscriber('/move_base/global_costmap/costmap_updates', OccupancyGridUpdate, globalUpdateCallback, queue_size=1)
 
     global_serv = rospy.Service('global_path', CalcPath, globalCalcPath)
-    local_serv = rospy.Service('local_path',CalcPath, localCalcPath)
+    local_serv = rospy.Service('local_path', CalcPath, localCalcPath)
 
     rospy.sleep(1)
     print "READY TO NAVIGATE"
 
-    rospy.Timer(rospy.Duration(1), printUpdatedMaps)
+    # rospy.Timer(rospy.Duration(1), printUpdatedMaps) # for debugging
 
     #this handles updating the local_cost_map
     while not rospy.is_shutdown():

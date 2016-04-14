@@ -97,7 +97,7 @@ class Grid:
     def __init__(self,width,height,data,info,frame_id):
         self.width = width
         self.height = height
-        self.data = data
+        self.data = list(data)
         self.map_info = info
         self.frame_id = frame_id
 
@@ -123,7 +123,7 @@ class Grid:
 
             minVal = float('inf')
             for cost in temparr:
-                if (not (cost == 0) and (cost < minVal)): minVal = cost
+                if not (cost == 0) and (cost < minVal): minVal = cost
 
             minVal *= 1.01
 
@@ -149,8 +149,11 @@ class Grid:
         xOff = update.x
         yOff = update.y
 
+        #assert isinstance(self.data, list)
+        #assert isinstance(update.data, list)
+
         # loop through the x and y, replacing the corresponding values with updated values
         for x in range(0, update.width):
             for y in range(0, update.height):
-                self.data[(xOff + x) + (yOff + y) * self.width] = update.data[x + y * update.width]
+                self.setVal(xOff + x, yOff + y, update.data[x + y * update.width])
 
