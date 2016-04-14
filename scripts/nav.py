@@ -306,8 +306,9 @@ if __name__ == '__main__':
     pose_pub = rospy.Publisher('/robot_pose', PoseStamped, None, queue_size=10)
     # start_pub = rospy.Publisher('/rviz_start',PoseWithCovarianceStamped,queue_size = 1)
     # bumper_sub = rospy.Subscriber('/mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
+
     odom_sub = rospy.Subscriber('/odom', Odometry, odomCallback, queue_size=1)
-    goal_sub = rospy.Subscriber('/this_is_rviz', PoseStamped, navToPose, queue_size=1)
+    goal_sub = rospy.Subscriber('/this_is_rviz', PoseStamped, navToPose, queue_size=3)
 
     getGlobalPath = rospy.ServiceProxy('global_path', CalcPath)
     getLocalPath = rospy.ServiceProxy('local_path', CalcPath)

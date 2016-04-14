@@ -4,6 +4,7 @@ import tf
 from nodes import *
 from geometry_msgs.msg import Pose
 from nav_msgs.msg import OccupancyGrid, GridCells, Path
+from map_msgs.msg import OccupancyGridUpdate
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Point as ROSPoint
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
@@ -237,12 +238,22 @@ def localCalcPath(req):
     return CalcPathResponse(path)
     
 
+def localUpdateCostmap(update):
+    global local_map
+    local_map.update(update)
+
+
+def globalUpdateCostmap(update):
+    global gobal_map
+    global_map.update(update)
+
 
 def run():
 
     rospy.init_node('planning_node')
 
     global global_map
+    global local_map
     global cost_map
 
     #make publishers global so that they can be used anywhere
@@ -255,9 +266,10 @@ def run():
     global transformer
     global local_current_map_pub
     global global_current_map_pub
+    global global_update_sub
+    global local_update_sub
     
     cost_map = None
-
     
     transformer = tf.TransformListener()
 
@@ -271,10 +283,14 @@ def run():
 
     # subscribers
     global_grid_sub = rospy.Subscriber('/move_base/global_costmap/costmap', OccupancyGrid, globalMapCallback, queue_size=1)
+
     local_grid_sub = rospy.Subscriber('/move_base/local_costmap/costmap', OccupancyGrid, localMapCallback, queue_size=1)
 
     path_pub = rospy.Publisher('/robot_path', GridCells, queue_size=1)
     waypoints_pub = rospy.Publisher('/waypoints', Path, queue_size=1)
+
+    local_update_sub = rospy.Subscriber('/move_base/local_costmap/costmap_updates', OccupancyGridUpdate, localUpdateCallback, queue_size=1)
+    global_update_sub = rospy.Subscriber('/move_base/global_costmap/costmap_updates', OccupancyGridUpdate, globalUpdateCallback, queue_size=1)
 
     global_serv = rospy.Service('global_path', CalcPath, globalCalcPath)
     local_serv = rospy.Service('local_path',CalcPath, localCalcPath)

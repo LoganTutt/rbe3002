@@ -142,3 +142,15 @@ class Grid:
 
         publisher.publish(costGrid)
 
+
+    # this updates the map with the update sent by the robot
+    def update(self, update):
+
+        xOff = update.x
+        yOff = update.y
+
+        # loop through the x and y, replacing the corresponding values with updated values
+        for x in range(0, update.width):
+            for y in range(0, update.height):
+                self.data[(xOff + x) + (yOff + y) * self.width] = update.data[x + y * update.width]
+
