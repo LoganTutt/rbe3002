@@ -136,6 +136,7 @@ def aStar(start, goal, grid, wayPub):
     ways.header.stamp = rospy.get_rostime()
     wayPoints.append(node2pose(curNode,grid))
     
+
     temp = ROSPoint()
     temp.x = (curNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
     temp.y = (curNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
@@ -144,25 +145,57 @@ def aStar(start, goal, grid, wayPub):
 
     curNode = curNode.prevNode
 
-    distCount = .75/grid.map_info.resolution
-    count = 0
-    #generates waypoints at each rotation location
-    while (curNode != None and not curNode.prevNode == None):
-        if (not curNode.orientation == curNode.prevNode.orientation or count >= distCount) and curNode.prevNode.prevNode != None:
-            wayPoints.insert(0,node2pose(curNode.prevNode,grid))
-            temp = ROSPoint()
-            temp.x = (curNode.prevNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
-            temp.y = (curNode.prevNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
-            temp.z = path.cell_height * .25 #offset above costmap
-            ways.cells.append(temp)
-            count = 0
+    nodes = []
+    while curNode and curNode.prevNode and curNode.prevNode.prevNode:
+        nodes.insert(0,curNode)
         rosPoint = ROSPoint()
         rosPoint.x = (curNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
         rosPoint.y = (curNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
         rosPoint.z = path.cell_height * .125 #offset above path
         path.cells.append(rosPoint)
         curNode = curNode.prevNode
-        count += 1
+
+    distCount = .75/grid.map_info.resolution
+    count = 0
+    for node in nodes:
+        if (count > distCount or not node.orientation == node.prevNode.orientation) : 
+            wayPoints.insert(0,node2pose(node.prevNode,grid))
+            temp = ROSPoint()
+            temp.x = (node.prevNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
+            temp.y = (node.prevNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
+            temp.z = path.cell_height * .25 #offset above costmap
+            ways.cells.append(temp)
+            count = 0
+        count+=1
+
+
+#    temp = ROSPoint()
+#    temp.x = (curNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
+#    temp.y = (curNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
+#    temp.z = path.cell_height * .25 #offset above costmap
+#    ways.cells.append(temp)
+#
+#    curNode = curNode.prevNode
+#
+#    distCount = .75/grid.map_info.resolution
+#    count = 0
+#    #generates waypoints at each rotation location
+#    while (curNode != None and not curNode.prevNode == None):
+#        if (not curNode.orientation == curNode.prevNode.orientation or count >= distCount) and curNode.prevNode.prevNode != None:
+#            wayPoints.insert(0,node2pose(curNode.prevNode,grid))
+#            temp = ROSPoint()
+#            temp.x = (curNode.prevNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
+#            temp.y = (curNode.prevNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
+#            temp.z = path.cell_height * .25 #offset above costmap
+#            ways.cells.append(temp)
+#            count = 0
+#        rosPoint = ROSPoint()
+#        rosPoint.x = (curNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
+#        rosPoint.y = (curNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
+#        rosPoint.z = path.cell_height * .125 #offset above path
+#        path.cells.append(rosPoint)
+#        curNode = curNode.prevNode
+#        count += 1
 
     path_pub.publish(path)
     wayPub.publish(ways)

@@ -248,17 +248,21 @@ def navToPose(goal):
         if path.poses:
             print "naving to a new waypoint"
             rospy.sleep(1)
-            localPathServ = getLocalPath(navBot.cur.pose, p.pose)
+            localPathServ = getLocalPath(navBot.cur.pose, path.poses[0].pose)
             localPath = localPathServ.path
             while not localPath.poses:  #if there's something in the
-                print "no possible path"
-                localPath.poses.remove[0]
-                continue
+                print "blocked waypoint, moving to next"
+                del path.poses[0]
+                if not path.poses:
+                    print "no valid path. Ending navigation"
+                    return
+                localPathServ = getLocalPath(navBot.cur.pose, path.poses[0].pose)
+                localPath = localPathServ.path
             navBot.goToPose(localPath.poses[0])
         else:
             print "point not navigatable"
             return
-        if (len(path.poses) == 0):
+        if len(path.poses) == 1:
             navBot.rotateTo(getAngleFromPose(goal.pose))
             print "Finished Navigation"
             return
