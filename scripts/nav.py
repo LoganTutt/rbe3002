@@ -9,8 +9,6 @@ from geometry_msgs.msg import PoseStamped
 from tf.transformations import euler_from_quaternion
 from rbe3002.srv import *
 
-# Add additional imports for each of the message types used
-
 # Turtlebot Dimension Constants
 wheel_rad = 3.5 / 100.0  # cm to m
 wheel_base = 23.0 / 100.0  # cm to m
@@ -94,8 +92,6 @@ class Navigate:
         goalY = self.goal.pose.position.y
         atGoal = False
 
-        print "driving with PID"
-
         while (not atGoal and not rospy.is_shutdown()):
             self.prevDriveDelta = self.curDriveDelta
             tempCur = transformer.transformPose(self.goal.header.frame_id, self.cur)
@@ -106,13 +102,10 @@ class Navigate:
             self.goalAngle = math.atan2(goalY - curY, goalX - curX)
             atGoal = (self.curDriveDelta <= self.distThresh)
 
-            # print "driving: " + str(self.curDriveDelta)
-
             self.linVel = (self.driveKp * self.curDriveDelta + self.driveKi * self.totalDriveDelta * timeDelta - self.driveKd * abs(self.prevDriveDelta - self.curDriveDelta) / timeDelta) * (1 - abs(self.angVel) / 0.5)
             rospy.sleep(timeDelta)
 
         # stop when goal is reached
-        print "got to waypoint"
         self.resetPID()
         self.linVel = 0.0
         self.angVel = 0.0
@@ -140,8 +133,6 @@ class Navigate:
         self.goalAngle = angle
         timeRes = 0.05
 
-        print "starting to rotate"
-
         # initialize position
         atGoal = False
 
@@ -156,7 +147,6 @@ class Navigate:
             rospy.sleep(timeRes)
 
         # stop when goal is reached
-        print "got to the angle"
         self.angVel = 0.0
         self.linVel = 0.0
         self.resetPID()

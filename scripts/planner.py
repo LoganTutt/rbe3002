@@ -1,17 +1,13 @@
 #!/usr/bin/env python
 
-import rospy, tf, math, nodes, copy
+import tf
 from nodes import *
-from nav import navToPose
-from geometry_msgs.msg import Twist, Pose
-from std_msgs.msg import String
-from nav_msgs.msg import Odometry, OccupancyGrid, GridCells, Path
-from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
+from geometry_msgs.msg import Pose
+from nav_msgs.msg import OccupancyGrid, GridCells, Path
+from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Point as ROSPoint
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from rbe3002.srv import *
-
-
 
 
 #converts a pose (Pose) to a point (Point) in the world grid
@@ -132,10 +128,7 @@ def aStar(start, goal, grid, wayPub):
     ways.cell_width = grid.map_info.resolution
     ways.header.frame_id = grid.frame_id
     ways.header.stamp = rospy.get_rostime()
-    # wayPoints.append(node2pose(curNode,grid))
-    
-
-    temp = ROSPoint()
+    temp = ROSPoint()   # rviz "GridCell" displays ROSPoints
     temp.x = (curNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
     temp.y = (curNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
     temp.z = path.cell_height * .25 #offset above costmap
@@ -150,8 +143,6 @@ def aStar(start, goal, grid, wayPub):
         rosPoint.z = path.cell_height * .125 #offset above path
         path.cells.append(rosPoint)
         curNode = curNode.prevNode
-
-    print len(nodes)
 
     distCount = .75/grid.map_info.resolution
     count = 0
