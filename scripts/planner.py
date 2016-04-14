@@ -197,9 +197,6 @@ def globalMapCallback(data_map):
 
     assert isinstance(data_map,OccupancyGrid)
 
-    #print "recieved global map"
-    global_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info, data_map.header.frame_id)
-    global_map.publish(global_current_map_pub)
 
 #data_map is an OccupancyGrid
 #stores the incoming local map
@@ -208,10 +205,6 @@ def localMapCallback(data_map):
     global local_current_map_pub
 
     assert isinstance(data_map,OccupancyGrid)
-
-    #print "recieved local map"
-    local_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info,data_map.header.frame_id)
-    local_map.publish(local_current_map_pub)
 
 
 #service handler. Takes in a start and end pose then returns a path
@@ -238,14 +231,24 @@ def localCalcPath(req):
     return CalcPathResponse(path)
     
 
-def localUpdateCostmap(update):
+def localUpdateCallback(update):
     global local_map
     local_map.update(update)
 
 
-def globalUpdateCostmap(update):
+def globalUpdateCallback(update):
     global gobal_map
     global_map.update(update)
+
+
+def printUpdatedMaps(event):
+    global local_map
+    global global_map
+
+    # print "recieved and updated local map"
+    local_map.publish(local_current_map_pub)
+    # print "recieved global updated map"
+    global_map.publish(global_current_map_pub)
 
 
 def run():
@@ -297,6 +300,8 @@ def run():
 
     rospy.sleep(1)
     print "READY TO NAVIGATE"
+
+    rospy.Timer(rospy.Duration(1), printUpdatedMaps)
 
     #this handles updating the local_cost_map
     while not rospy.is_shutdown():
