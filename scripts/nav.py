@@ -26,13 +26,13 @@ class Navigate:
 
     # PID Constants
 
-    turnKp = 2  # 1.25
-    turnKi = 0.0  # 3
-    turnKd = 0.0  # 0.1
+    turnKp = 0.0
+    turnKi = 0.0
+    turnKd = 0.0
 
-    driveKp = .5  # .5
-    driveKi = 0.0  # 0.1
-    driveKd = 0.0  # 0.0025
+    driveKp = 0.0
+    driveKi = 0.0
+    driveKd = 0.0
 
     curTurnDelta = 0.0
     prevTurnDelta = 0.0
@@ -43,7 +43,22 @@ class Navigate:
     totalDriveDelta = 0.0
 
 
-    def __init__(self, angleThresh, distThresh):
+    def __init__(self, angleThresh, distThresh, turtleBot):
+        if turtleBot == "cap'n":
+            self.turnKp = 2  # 1.25
+            self.driveKp = .5  # .5
+        elif turtleBot == "hawk-i":
+            self.turnKp = 2.25
+            self.driveKp = 1
+            self.driveKi = 0.1
+        elif turtleBot == "sim":
+            self.turnKp = 2  # 1.25
+            self.driveKp = .5  # .5
+        else:
+            turtleBot = "not a"
+
+        print "You're on the *" + turtleBot + "* bot!"
+
         self.angleThresh = angleThresh
         self.distThresh = distThresh
         self.resetPID()
@@ -242,7 +257,6 @@ def navToPose(goal):
         if globalPath.poses:  # if there's something in the list of poses
             print " Global Navigation"
             navBot.rotateTowardPose(globalPath.poses[0]) # rotate to update local map
-            rospy.sleep(1)
             localPathServ = getLocalPath(navBot.cur.pose, globalPath.poses[0].pose)
             localPath = localPathServ.path
             while not localPath.poses:  # if there's nothing in the list of poses
@@ -281,7 +295,7 @@ if __name__ == '__main__':
 
     global navBot
 
-    navBot = Navigate(.1, .025)  # pass these the resolutions that you want.
+    navBot = Navigate(.1, .025, "hawk-i")  # pass these the resolutions that you want.
 
     transformer = tf.TransformListener()
 
@@ -298,7 +312,6 @@ if __name__ == '__main__':
     getGlobalPath = rospy.ServiceProxy('global_path', CalcPath)
     getLocalPath = rospy.ServiceProxy('local_path', CalcPath)
 
-    # Use this command to make the program wait for some seconds
     rospy.sleep(rospy.Duration(1, 0))
 
     rospy.Timer(rospy.Duration(.05), navBot.updatePID)
