@@ -8,11 +8,13 @@ from nav_msgs.msg import Odometry, Path
 from geometry_msgs.msg import PoseStamped
 from tf.transformations import euler_from_quaternion
 from rbe3002.srv import *
+
 # Add additional imports for each of the message types used
 
-#Turtlebot Dimension Constants
-wheel_rad = 3.5 / 100.0 #cm to m
-wheel_base = 23.0 / 100.0 #cm to m
+# Turtlebot Dimension Constants
+wheel_rad = 3.5 / 100.0  # cm to m
+wheel_base = 23.0 / 100.0  # cm to m
+
 
 class Navigate:
     start = PoseStamped()
@@ -26,13 +28,13 @@ class Navigate:
 
     # PID Constants
 
-    turnKp = 2#1.25
-    turnKi = 0.0#3
-    turnKd = 0.0#0.1
+    turnKp = 2  # 1.25
+    turnKi = 0.0  # 3
+    turnKd = 0.0  # 0.1
 
-    driveKp = .5#.5
-    driveKi = 0.0#0.1
-    driveKd = 0.0#0.0025
+    driveKp = .5  # .5
+    driveKi = 0.0  # 0.1
+    driveKd = 0.0  # 0.0025
 
     curTurnDelta = 0.0
     prevTurnDelta = 0.0
@@ -49,38 +51,27 @@ class Navigate:
         self.resetPID()
         pass
 
-    #Publishes Twist messages
+
+    # Publishes Twist messages
     def pubTwist(self):
         global pub
         msg = Twist()
-        linVel = numpy.clip(self.linVel,0,0.3)
+        linVel = numpy.clip(self.linVel, 0, 0.3)
         msg.linear.x = linVel
-        aVel =numpy.clip(self.angVel,-0.5,0.5)
+        aVel = numpy.clip(self.angVel, -0.5, 0.5)
         msg.angular.z = aVel
         pub.publish(msg)
 
 
-    #drives to the pose of goal
-    #goal is a poseStamped
+    # drives to the pose of goal
+    # goal is a poseStamped
     def goToPose(self, goal):
 
         self.start = self.cur
         self.goal = goal
 
-        #get current pose and orientation
-        tempCur = transformer.transformPose(self.goal.header.frame_id,self.cur)
-        curX = self.cur.pose.position.x
-        curY = self.cur.pose.position.y
-
-        assert isinstance(self.goal,PoseStamped)
-
-        goalX = self.goal.pose.position.x
-        goalY = self.goal.pose.position.y
-
-        dX = goalX - curX
-        dY = goalY - curY
-
-        self.rotateTo(math.atan2(dY,dX))
+        # get current pose and orientation
+        self.rotateTowardPose(goal)
 
         self.driveStraight()
 
@@ -93,12 +84,12 @@ class Navigate:
         return yaw
 
 
-    #This function accepts a speed and a distance for the robot to move in a straight line
+    # This function accepts a speed and a distance for the robot to move in a straight line
     def driveStraight(self):
 
         timeDelta = 0.05
 
-        #initialize position
+        # initialize position
         goalX = self.goal.pose.position.x
         goalY = self.goal.pose.position.y
         atGoal = False
@@ -107,82 +98,103 @@ class Navigate:
 
         while (not atGoal and not rospy.is_shutdown()):
             self.prevDriveDelta = self.curDriveDelta
-            tempCur = transformer.transformPose(self.goal.header.frame_id,self.cur)
+            tempCur = transformer.transformPose(self.goal.header.frame_id, self.cur)
             curX = tempCur.pose.position.x
             curY = tempCur.pose.position.y
-            self.curDriveDelta = math.sqrt((goalX - curX)**2 + (goalY - curY)**2)
+            self.curDriveDelta = math.sqrt((goalX - curX) ** 2 + (goalY - curY) ** 2)
             self.totalDriveDelta += self.curDriveDelta
             self.goalAngle = math.atan2(goalY - curY, goalX - curX)
             atGoal = (self.curDriveDelta <= self.distThresh)
 
-            print "driving: " + str(self.curDriveDelta)
+            # print "driving: " + str(self.curDriveDelta)
 
-            self.linVel = (self.driveKp * self.curDriveDelta + self.driveKi * self.totalDriveDelta * timeDelta - self.driveKd * abs(self.prevDriveDelta - self.curDriveDelta) / timeDelta)*(1-abs(self.angVel)/0.5)
+            self.linVel = (self.driveKp * self.curDriveDelta + self.driveKi * self.totalDriveDelta * timeDelta - self.driveKd * abs(self.prevDriveDelta - self.curDriveDelta) / timeDelta) * (1 - abs(self.angVel) / 0.5)
             rospy.sleep(timeDelta)
 
-        #stop when goal is reached
+        # stop when goal is reached
         print "got to waypoint"
         self.resetPID()
         self.linVel = 0.0
         self.angVel = 0.0
 
 
-    #Accepts an angle and makes the robot rotate around it. Assume there's no reason for
+    def rotateTowardPose(self, goal):
+
+        tempCur = transformer.transformPose(goal.header.frame_id, self.cur)
+        curX = tempCur.pose.position.x
+        curY = tempCur.pose.position.y
+
+        assert isinstance(goal, PoseStamped)
+
+        goalX = goal.pose.position.x
+        goalY = goal.pose.position.y
+
+        dX = goalX - curX
+        dY = goalY - curY
+
+        self.rotateTo(math.atan2(dY, dX))
+
+
+    # Accepts an angle and makes the robot rotate around it. Assume there's no reason for
     def rotateTo(self, angle):
         self.goalAngle = angle
         timeRes = 0.05
 
         print "starting to rotate"
 
-        #initialize position
+        # initialize position
         atGoal = False
 
-        self.curTurnDelta = math.atan2(math.sin(self.goalAngle - self.getCurrentAngle()), math.cos(self.goalAngle - self.getCurrentAngle()))
+        self.curTurnDelta = math.atan2(math.sin(self.goalAngle - self.getCurrentAngle()),
+                                       math.cos(self.goalAngle - self.getCurrentAngle()))
 
         while (not atGoal and not rospy.is_shutdown()):
-            print "turning: " + str(self.curTurnDelta)
+            # print "turning: " + str(self.curTurnDelta)
             atGoal = (abs(self.curTurnDelta) <= self.angleThresh)
 
             self.linVel = 0.0
             rospy.sleep(timeRes)
 
-        #stop when goal is reached
+        # stop when goal is reached
         print "got to the angle"
         self.angVel = 0.0
         self.linVel = 0.0
         self.resetPID()
 
 
-    #Accepts an angle and makes the robot rotate around it. Assume there's no reason for
+    # Accepts an angle and makes the robot rotate around it. Assume there's no reason for
     def rotateBy(self, angle):
 
-        #initialize position
+        # initialize position
         initAng = self.cur.orientation.z
         atGoal = False
 
         while (not atGoal and not rospy.is_shutdown()):
             curAng = self.cur.orientation.z
-            self.goalAngle = abs(math.atan2(math.sin(curAng - initAng),math.cos(curAng - initAng)))
+            self.goalAngle = abs(math.atan2(math.sin(curAng - initAng), math.cos(curAng - initAng)))
             atGoal = (self.curTurnDelta >= self.angleThresh)
 
-            #keep going at given speed
+            # keep going at given speed
             self.linVel = 0.0
             rospy.sleep(0.1)
 
-        #stop when goal is reached
+        # stop when goal is reached
         self.resetPID()
 
 
     def updatePID(self, event):
 
-        #print str(self.getCurrentAngle()) + "  " + str(self.goalAngle)
+        # print str(self.getCurrentAngle()) + "  " + str(self.goalAngle)
 
         self.prevTurnDelta = self.curTurnDelta
-        timeDelta = .05 #abs(event.current_real - event.last_real)
-        self.curTurnDelta = math.atan2(math.sin(self.goalAngle - self.getCurrentAngle()), math.cos(self.goalAngle - self.getCurrentAngle()))
+        timeDelta = .05  # abs(event.current_real - event.last_real)
+        self.curTurnDelta = math.atan2(math.sin(self.goalAngle - self.getCurrentAngle()),
+                                       math.cos(self.goalAngle - self.getCurrentAngle()))
         self.totalTurnDelta += self.curTurnDelta * timeDelta
-        
-        self.angVel = (self.turnKp * self.curTurnDelta + self.turnKi * self.totalTurnDelta * timeDelta - self.turnKd * abs(self.prevTurnDelta - self.curTurnDelta) / timeDelta)
+
+        self.angVel = (
+        self.turnKp * self.curTurnDelta + self.turnKi * self.totalTurnDelta * timeDelta - self.turnKd * abs(
+            self.prevTurnDelta - self.curTurnDelta) / timeDelta)
 
         self.pubTwist()
 
@@ -214,24 +226,17 @@ def odomCallback(event):
     assert isinstance(navBot, Navigate)
     assert isinstance(event, Odometry)
 
-    
-
     robPose = PoseStamped()
     robPose.header = event.header
     robPose.header.stamp = rospy.Time(0)
     robPose.pose = event.pose.pose
 
-    navBot.cur = transformer.transformPose('map',robPose)
-
-#    navBot.cur.position.x = robPose.pose.position.x
-#    navBot.cur.position.y = robPose.pose.position.y
-#    navBot.cur.orientation = robPose.pose.orientation
+    navBot.cur = transformer.transformPose('map', robPose)
 
     pose_pub.publish(robPose)
 
 
 def getAngleFromPose(pose):
-
     quat = pose.orientation
     q = [quat.x, quat.y, quat.z, quat.w]
     roll, pitch, yaw = euler_from_quaternion(q)
@@ -240,43 +245,43 @@ def getAngleFromPose(pose):
 
 # creates a path and uses that path to move to the location
 def navToPose(goal):
+    print "Starting Navigation!"
     # get path from A*
     while True:
+        # find the global path
         globalPathServ = getGlobalPath(navBot.cur.pose, goal.pose)
-        path = globalPathServ.path
-        print "started driving"
-        if path.poses:
-            print "naving to a new waypoint"
+        globalPath = globalPathServ.path
+        if globalPath.poses:  # if there's something in the list of poses
+            print " Global Navigation"
+            navBot.rotateTowardPose(globalPath.poses[0]) # rotate to update local map
             rospy.sleep(1)
-            localPathServ = getLocalPath(navBot.cur.pose, path.poses[0].pose)
+            localPathServ = getLocalPath(navBot.cur.pose, globalPath.poses[0].pose)
             localPath = localPathServ.path
-            while not localPath.poses:  #if there's something in the
-                print "blocked waypoint, moving to next"
-                del path.poses[0]
-                if not path.poses:
-                    print "no valid path. Ending navigation"
+            while not localPath.poses:  # if there's nothing in the list of poses
+                print " - blocked global waypoint, moving to next"
+                del globalPath.poses[0]
+                if not globalPath.poses:
+                    print " - no valid path, ending navigation"
                     return
-                localPathServ = getLocalPath(navBot.cur.pose, path.poses[0].pose)
+                localPathServ = getLocalPath(navBot.cur.pose, globalPath.poses[0].pose)
                 localPath = localPathServ.path
+            print " Local Navigation"
             navBot.goToPose(localPath.poses[0])
         else:
-            print "point not navigatable"
+            print " - goal not navigable, ending navigation"
             return
-        if len(path.poses) == 1:
+
+        if len(globalPath.poses) == 1 and len(localPath.poses) == 1:
             navBot.rotateTo(getAngleFromPose(goal.pose))
-            print "Finished Navigation"
+            print " Finished All Navigation!"
             return
 
-
-def haltNav(halt):
-   global stopNav
-   stopNav = halt
 
 # This is the program's main function
 if __name__ == '__main__':
     # Change this node name to include your username
     rospy.init_node('rbe3002_nav')
-    
+
     global pub
     global odom_tf
     global odom_list
@@ -287,20 +292,20 @@ if __name__ == '__main__':
 
     global navBot
 
-    navBot = Navigate(.1, .1) #pass these the resolutions that you want.
+    navBot = Navigate(.1, .1)  # pass these the resolutions that you want.
 
     transformer = tf.TransformListener()
 
     rospy.sleep(1)
 
-    pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, None, queue_size=10) # Publisher for commanding robot motion
+    pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, None,
+                          queue_size=10)  # Publisher for commanding robot motion
     pose_pub = rospy.Publisher('/robot_pose', PoseStamped, None, queue_size=10)
-    #start_pub = rospy.Publisher('/rviz_start',PoseWithCovarianceStamped,queue_size = 1)
-    #bumper_sub = rospy.Subscriber('/mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
-    odom_sub = rospy.Subscriber('/odom',Odometry,odomCallback,queue_size=1)
+    # start_pub = rospy.Publisher('/rviz_start',PoseWithCovarianceStamped,queue_size = 1)
+    # bumper_sub = rospy.Subscriber('/mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
+    odom_sub = rospy.Subscriber('/odom', Odometry, odomCallback, queue_size=1)
     goal_sub = rospy.Subscriber('/this_is_rviz', PoseStamped, navToPose, queue_size=1)
-    stop_sub = rospy.Subscriber('/odom/halt', Bool, haltNav,queue_size=1)
-   
+
     getGlobalPath = rospy.ServiceProxy('global_path', CalcPath)
     getLocalPath = rospy.ServiceProxy('local_path', CalcPath)
 
@@ -308,7 +313,6 @@ if __name__ == '__main__':
     rospy.sleep(rospy.Duration(1, 0))
 
     rospy.Timer(rospy.Duration(.05), navBot.updatePID)
-
 
     print "Starting navigation node"
     rospy.spin()

@@ -19,7 +19,6 @@ def pose2point(pose, grid):
 
     assert isinstance(pose, Pose)
 
-
     poseStamped = PoseStamped()
     poseStamped.pose = pose
     poseStamped.header.frame_id = 'map'
@@ -32,7 +31,6 @@ def pose2point(pose, grid):
     dY = pose.position.y - grid.map_info.origin.position.y
 
     return Point(int(dX/grid.map_info.resolution), int(dY/grid.map_info.resolution))
-
 
 
 #converts a node object to a Pose object for use in a path
@@ -81,6 +79,7 @@ def aStar(start, goal, grid, wayPub):
         cutoffVal = grid.getVal(startPoint.x,startPoint.y)
 
     if grid.getVal(goalPoint.x,goalPoint.y) > cutoffVal:
+        print "   a* -> Goal is unreachable"
         return None
    
     # convert from euler yaw to 1,2,3,4, as used by node
@@ -92,8 +91,6 @@ def aStar(start, goal, grid, wayPub):
     curNode = Node(startPoint, initOri, goalPoint, None)
     nodes = {curNode.key: curNode}
     frontier = [curNode]
-
-    print str(curNode.point.x) + "," + str(curNode.point.y)
 
     #keep searching the frontiers based on the lowest cost until goal is reached
     while (not curNode.point.equals(goalPoint)):
@@ -114,6 +111,7 @@ def aStar(start, goal, grid, wayPub):
 
         frontier.remove(curNode)
         if not frontier:
+            print "   a* -> No more frontier"
             return None
         
         curNode = frontier[0] #curNode becomes the frontier node with the lowest cost
@@ -134,7 +132,7 @@ def aStar(start, goal, grid, wayPub):
     ways.cell_width = grid.map_info.resolution
     ways.header.frame_id = grid.frame_id
     ways.header.stamp = rospy.get_rostime()
-    wayPoints.append(node2pose(curNode,grid))
+    # wayPoints.append(node2pose(curNode,grid))
     
 
     temp = ROSPoint()
@@ -143,10 +141,8 @@ def aStar(start, goal, grid, wayPub):
     temp.z = path.cell_height * .25 #offset above costmap
     ways.cells.append(temp)
 
-    curNode = curNode.prevNode
-
     nodes = []
-    while curNode and curNode.prevNode and curNode.prevNode.prevNode:
+    while curNode and curNode.prevNode:
         nodes.insert(0,curNode)
         rosPoint = ROSPoint()
         rosPoint.x = (curNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
@@ -155,11 +151,13 @@ def aStar(start, goal, grid, wayPub):
         path.cells.append(rosPoint)
         curNode = curNode.prevNode
 
+    print len(nodes)
+
     distCount = .75/grid.map_info.resolution
     count = 0
     for node in nodes:
-        if (count > distCount or not node.orientation == node.prevNode.orientation) : 
-            wayPoints.insert(0,node2pose(node.prevNode,grid))
+        if (count >= distCount or not node.orientation == node.prevNode.orientation) and node.prevNode.prevNode:
+            wayPoints.append(node2pose(node.prevNode, grid))
             temp = ROSPoint()
             temp.x = (node.prevNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
             temp.y = (node.prevNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
@@ -167,39 +165,10 @@ def aStar(start, goal, grid, wayPub):
             ways.cells.append(temp)
             count = 0
         count+=1
-
-
-#    temp = ROSPoint()
-#    temp.x = (curNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
-#    temp.y = (curNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
-#    temp.z = path.cell_height * .25 #offset above costmap
-#    ways.cells.append(temp)
-#
-#    curNode = curNode.prevNode
-#
-#    distCount = .75/grid.map_info.resolution
-#    count = 0
-#    #generates waypoints at each rotation location
-#    while (curNode != None and not curNode.prevNode == None):
-#        if (not curNode.orientation == curNode.prevNode.orientation or count >= distCount) and curNode.prevNode.prevNode != None:
-#            wayPoints.insert(0,node2pose(curNode.prevNode,grid))
-#            temp = ROSPoint()
-#            temp.x = (curNode.prevNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
-#            temp.y = (curNode.prevNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
-#            temp.z = path.cell_height * .25 #offset above costmap
-#            ways.cells.append(temp)
-#            count = 0
-#        rosPoint = ROSPoint()
-#        rosPoint.x = (curNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
-#        rosPoint.y = (curNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
-#        rosPoint.z = path.cell_height * .125 #offset above path
-#        path.cells.append(rosPoint)
-#        curNode = curNode.prevNode
-#        count += 1
+    wayPoints.append(node2pose(nodes[-1], grid))
 
     path_pub.publish(path)
     wayPub.publish(ways)
-
 
     return wayPoints
 
@@ -209,21 +178,18 @@ def aStar(start, goal, grid, wayPub):
 def calcWaypoints(start, goal, grid, wayPub):
     global cost_map
 
-    print "Got start and goal poses"
-
     cost_map = Grid(grid.width, grid.height, [0]*len(grid.data), grid.map_info, grid.frame_id)
 
     dao = aStar(start, goal, grid, wayPub)       #dao = way in Chinese
 
     if not dao:
-        print "No path found"
+        print "   a* -> no path found"
         return
 
     way = Path()
     for waypoint in dao:
         way.poses.append(waypoint)
 
-    print "findeh de path"
     waypoints_pub.publish(way)
     return way
 
@@ -238,7 +204,7 @@ def globalMapCallback(data_map):
 
     assert isinstance(data_map,OccupancyGrid)
 
-    print "recieved global map"
+    #print "recieved global map"
     global_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info, data_map.header.frame_id)
     global_map.publish(global_current_map_pub)
 
@@ -250,12 +216,9 @@ def localMapCallback(data_map):
 
     assert isinstance(data_map,OccupancyGrid)
 
-    print "recieved local map"
+    #print "recieved local map"
     local_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info,data_map.header.frame_id)
-    print " -> start publish"
     local_map.publish(local_current_map_pub)
-    print " -> end publish"
-
 
 
 #service handler. Takes in a start and end pose then returns a path
@@ -267,7 +230,7 @@ def globalCalcPath(req):
     path = calcWaypoints(start, goal, global_map, global_way_pub)
 
     cost_map.publish(global_costmap_pub)
-    cost_map=None
+    cost_map = None
 
     return CalcPathResponse(path)
 
@@ -325,7 +288,7 @@ def run():
     local_serv = rospy.Service('local_path',CalcPath, localCalcPath)
 
     rospy.sleep(1)
-    print "Ready"
+    print "READY TO NAVIGATE"
 
     #this handles updating the local_cost_map
     while not rospy.is_shutdown():
