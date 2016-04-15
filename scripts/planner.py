@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import tf
+import tf, rospy
 from nodes import *
 from geometry_msgs.msg import Pose
 from nav_msgs.msg import OccupancyGrid, GridCells, Path

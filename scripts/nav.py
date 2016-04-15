@@ -7,6 +7,7 @@ from geometry_msgs.msg import Twist, Pose, PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry, Path
 from geometry_msgs.msg import PoseStamped
 from tf.transformations import euler_from_quaternion
+from actionlib_msgs.msg import GoalStatusArray, GoalStatus
 from rbe3002.srv import *
 
 # Turtlebot Dimension Constants
@@ -277,6 +278,11 @@ def navToPose(goal):
             print " Finished All Navigation!"
             break
     navBot.rotateTo(getAngleFromPose(goal.pose))
+    statuses = GoalStatusArray()
+    status = GoalStatus()
+    status.status = 3
+    statuses.status_list.append(status)
+    status_pub.publish(statuses)
 
 
 
@@ -304,11 +310,12 @@ if __name__ == '__main__':
     pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, None,
                           queue_size=10)  # Publisher for commanding robot motion
     pose_pub = rospy.Publisher('/robot_pose', PoseStamped, None, queue_size=10)
+    status_pub = rospy.Publisher('/move_base/status', GoalStatusArray, None, queue_size=1)
     # start_pub = rospy.Publisher('/rviz_start',PoseWithCovarianceStamped,queue_size = 1)
     # bumper_sub = rospy.Subscriber('/mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
 
     odom_sub = rospy.Subscriber('/odom', Odometry, odomCallback, queue_size=1)
-    goal_sub = rospy.Subscriber('/this_is_rviz', PoseStamped, navToPose, queue_size=3)
+    goal_sub = rospy.Subscriber('/rbe_nav_goal', PoseStamped, navToPose, queue_size=3)
 
     getGlobalPath = rospy.ServiceProxy('global_path', CalcPath)
     getLocalPath = rospy.ServiceProxy('local_path', CalcPath)
