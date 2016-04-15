@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import rospy, planner,tf
+import rospy, planner, nav, tf
 from geometry_msgs.msg import Pose, PoseStamped
 from nav_msgs.msg import OccupancyGrid, GridCells, Path
 from map_msgs.msg import OccupancyGridUpdate
@@ -22,6 +22,7 @@ def run():
         print "using gMapping nav"
         goal_pub = rospy.Publisher('/move_base_simple/goal',PoseStamped, queue_size=1)
         planner.init()
+        nav.init()
 
     frontier_pub =rospy.Publisher('/frontier/frontier',GridCells,queue_size=1) 
 

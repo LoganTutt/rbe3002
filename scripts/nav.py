@@ -284,13 +284,7 @@ def navToPose(goal):
     statuses.status_list.append(status)
     status_pub.publish(statuses)
 
-
-
-# This is the program's main function
-if __name__ == '__main__':
-    # Change this node name to include your username
-    rospy.init_node('rbe3002_nav')
-
+def init():
     global pub
     global odom_tf
     global odom_list
@@ -315,6 +309,14 @@ if __name__ == '__main__':
     # bumper_sub = rospy.Subscriber('/mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
 
     odom_sub = rospy.Subscriber('/odom', Odometry, odomCallback, queue_size=1)
+    rospy.Timer(rospy.Duration(.05), navBot.updatePID)
+
+# This is the program's main function
+if __name__ == '__main__':
+    # Change this node name to include your username
+    rospy.init_node('rbe3002_nav')
+    
+    init()
     goal_sub = rospy.Subscriber('/rbe_nav_goal', PoseStamped, navToPose, queue_size=3)
 
     getGlobalPath = rospy.ServiceProxy('global_path', CalcPath)
@@ -322,7 +324,6 @@ if __name__ == '__main__':
 
     rospy.sleep(rospy.Duration(1, 0))
 
-    rospy.Timer(rospy.Duration(.05), navBot.updatePID)
 
     print "Starting navigation node"
     rospy.spin()
