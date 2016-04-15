@@ -259,6 +259,24 @@ def printUpdatedMaps(event):
 def run():
 
     rospy.init_node('planning_node')
+    init()
+
+    global_serv = rospy.Service('global_path', CalcPath, globalCalcPath)
+    local_serv = rospy.Service('local_path', CalcPath, localCalcPath)
+
+    rospy.sleep(1)
+    print "READY TO NAVIGATE"
+
+    # rospy.Timer(rospy.Duration(1), printUpdatedMaps) # for debugging
+
+    #this handles updating the local_cost_map
+    while not rospy.is_shutdown():
+        if (cost_map != None):
+            cost_map.publish(local_costmap_pub)
+        rospy.sleep(.125)
+
+
+def init():
 
     global global_map
     global local_map
@@ -297,21 +315,6 @@ def run():
 
     local_update_sub = rospy.Subscriber('/move_base/local_costmap/costmap_updates', OccupancyGridUpdate, localUpdateCallback, queue_size=1)
     global_update_sub = rospy.Subscriber('/move_base/global_costmap/costmap_updates', OccupancyGridUpdate, globalUpdateCallback, queue_size=1)
-
-    global_serv = rospy.Service('global_path', CalcPath, globalCalcPath)
-    local_serv = rospy.Service('local_path', CalcPath, localCalcPath)
-
-    rospy.sleep(1)
-    print "READY TO NAVIGATE"
-
-    # rospy.Timer(rospy.Duration(1), printUpdatedMaps) # for debugging
-
-    #this handles updating the local_cost_map
-    while not rospy.is_shutdown():
-        if (cost_map != None):
-            cost_map.publish(local_costmap_pub)
-        rospy.sleep(.125)
-
 
 if __name__ == '__main__':
     
