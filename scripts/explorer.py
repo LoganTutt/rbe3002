@@ -17,6 +17,8 @@ def getNextWaypoint():
 
 
 def exploreMap():
+    global reachedGoal
+
     nav.navBot.rotateTo(-math.pi)
     nav.navBot.rotateTo(0)
 
@@ -25,6 +27,7 @@ def exploreMap():
     waypoint = getNextWaypoint()
     while waypoint and not rospy.is_shutdown():
         goal_pub.publish(waypoint)
+        reachedGoal = False
         rospy.sleep(.01)
         while reachedGoal and not rospy.is_shutdown():
             pass
@@ -32,8 +35,17 @@ def exploreMap():
 
     print "finished exploring map"
 
+
+def mapCallback(data_map)
+    global global_map
+    global_map = Grid(data_map.info.width, data_map.map_info.height, data_map.data, data_map.header.frame_id)
+
+
 def statusCallback(status):
-    pass
+    global reachedGoal
+
+    statusVal = status.something
+    reachedGoal = statusVal == 3
 
 def run():
     global goal_pub
@@ -49,13 +61,15 @@ def run():
     else:
         print "using gMapping nav"
         goal_pub = rospy.Publisher('/move_base_simple/goal',PoseStamped, queue_size=1)
-        planner.init()
-        nav.init()
+
+    planner.init()
+    nav.init()
 
     frontier_pub =rospy.Publisher('/frontier/frontier',GridCells,queue_size=1) 
 
 
     status_sub = rospy.Subscriber('/move_base/status', GoalStatusArray, statusCallback, queue_size=1)
+    map_sub = rospy.Subscriber('/map',OccupancyGrid,mapCallback, queue_size=1)
 
 
     exploreMap()
