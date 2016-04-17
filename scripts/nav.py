@@ -292,10 +292,12 @@ def init():
     global getGlobalPath
     global getLocalPath
     global transformer
+    global pose_pub
+    global status_pub
 
     global navBot
 
-    navBot = Navigate(.1, .025, "hawk-i")  # pass these the resolutions that you want.
+    navBot = Navigate(.1, .025, "sim")  # pass these the resolutions that you want.
 
     transformer = tf.TransformListener()
 
