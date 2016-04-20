@@ -30,7 +30,7 @@ def pose2point(pose, grid):
     return Point(int(dX/grid.map_info.resolution), int(dY/grid.map_info.resolution))
 
 
-#converts a node object to a Pose object for use in a path
+#converts a node object to a PoseStamped object for use in a path
 def node2pose(node,grid):
 
     pose = Pose()
@@ -65,17 +65,17 @@ def aStar(start, goal, grid, wayPub):
     global cost_map
     
     # convert from poses to points + init orientation (1,2,3, or 4)
-    startPoint = pose2point(start,grid)
-    goalPoint = pose2point(goal,grid)
+    startPoint = pose2point(start, grid)
+    goalPoint = pose2point(goal, grid)
     quat = [start.orientation.x, start.orientation.y, start.orientation.z, start.orientation.w]
     roll, pitch, yaw = euler_from_quaternion(quat)
     initYaw = yaw  # returns the yaw
     
     cutoffVal = 60
-    if grid.getVal(startPoint.x,startPoint.y) > cutoffVal:
-        cutoffVal = grid.getVal(startPoint.x,startPoint.y)
+    if grid.getVal(startPoint.x, startPoint.y) > cutoffVal:
+        cutoffVal = grid.getVal(startPoint.x, startPoint.y)
 
-    if grid.getVal(goalPoint.x,goalPoint.y) > cutoffVal:
+    if grid.getVal(goalPoint.x, goalPoint.y) > cutoffVal:
         print "   a* -> Goal is unreachable"
         return None
    
@@ -83,14 +83,16 @@ def aStar(start, goal, grid, wayPub):
     initOri = round(initYaw / (math.pi / 2)) + 1
     if initOri <= 0: initOri += 4
 
+    ######################################################################################################
+
     # A* here
     curNode = Node(startPoint, initOri, goalPoint, None)
-    nodes = {curNode.key: curNode}
+    path = {curNode.key: curNode}
     frontier = [curNode]
 
     # keep searching the frontiers based on the lowest cost until goal is reached
     while (not curNode.point.equals(goalPoint)):
-        nodeKids = curNode.createNewNodes(nodes, grid, cutoffVal) # create new nodes that are neighbors to current node
+        nodeKids = curNode.createNewNodes(path, grid, cutoffVal) # create new nodes that are neighbors to current node
         for kid in nodeKids:
             # add the nodes to frontier based on cost
             for ind in range(0,len(frontier)):
@@ -100,7 +102,7 @@ def aStar(start, goal, grid, wayPub):
                 elif (ind == len(frontier) - 1): frontier.append(kid)
 
             # add the new node to the dictionary of nodes
-            nodes[kid.key()] = kid
+            path[kid.key()] = kid
 
             #add kids' costs to the cost_map
             cost_map.setVal(kid.point.x, kid.point.y, int(kid.cost))
@@ -112,58 +114,73 @@ def aStar(start, goal, grid, wayPub):
         
         curNode = frontier[0] # curNode becomes the frontier node with the lowest cost
 
-    # order and optimize the waypoints
-    wayPoints = []
-    path = GridCells()
-    ways = GridCells()
+    ######################################################################################################
 
-    # path is a GridCells, and is used to display the path in rviz
-    path.cell_height = grid.map_info.resolution
-    path.cell_width = grid.map_info.resolution
-    path.header.frame_id = grid.frame_id
-    path.header.stamp = rospy.get_rostime()
+    # store the best path, determined by a*
+    path = []
 
-    # ways is a GridCells, and is used to display the waypoints in rviz
-    ways.cell_height = grid.map_info.resolution
-    ways.cell_width = grid.map_info.resolution
-    ways.header.frame_id = grid.frame_id
-    ways.header.stamp = rospy.get_rostime()
-    temp = ROSPoint()   # rviz "GridCell" displays ROSPoints
-    temp.x = (curNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
-    temp.y = (curNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
-    temp.z = path.cell_height * .25 # offset above costmap
-    ways.cells.append(temp)
+    # displayPath is a GridCells, and is used to display the path in rviz
+    displayPath = GridCells()
+    displayPath.cell_height = grid.map_info.resolution
+    displayPath.cell_width = grid.map_info.resolution
+    displayPath.header.frame_id = grid.frame_id
+    displayPath.header.stamp = rospy.get_rostime()
 
-    nodes = []
+    # put the chosen path into an array of nodes (path), and a GridCells (displayPath)
     while curNode and curNode.prevNode:
-        nodes.insert(0,curNode)
+        path.insert(0, curNode)
         rosPoint = ROSPoint()
-        rosPoint.x = (curNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
-        rosPoint.y = (curNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
-        rosPoint.z = path.cell_height * .125 # offset above path
-        path.cells.append(rosPoint)
+        rosPoint.x = (curNode.point.x + .5) * displayPath.cell_width + grid.map_info.origin.position.x
+        rosPoint.y = (curNode.point.y + .5) * displayPath.cell_height + grid.map_info.origin.position.y
+        rosPoint.z = displayPath.cell_height * .125  # offset above path
+        displayPath.cells.append(rosPoint)
         curNode = curNode.prevNode
 
+    path_pub.publish(displayPath)
+
+    ######################################################################################################
+
+    # figure out the optimal waypoints, store them
+    wayPoints = []
+
+    # displayWays is a GridCells, and is used to display the waypoints in rviz
+    displayWays = GridCells()
+    displayWays.cell_height = grid.map_info.resolution
+    displayWays.cell_width = grid.map_info.resolution
+    displayWays.header.frame_id = grid.frame_id
+    displayWays.header.stamp = rospy.get_rostime()
+
+    # put the vital waypoints into an array of poseStamped (waypoints), and a GridCells (displayWays) to be displayed
     distCount = .75/grid.map_info.resolution
     count = 0
-    for node in nodes:
-        if (count >= distCount or not node.orientation == node.prevNode.orientation) and node.prevNode.prevNode:
-            wayPoints.append(node2pose(node.prevNode, grid))
-            temp = ROSPoint()
-            temp.x = (node.prevNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
-            temp.y = (node.prevNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
-            temp.z = path.cell_height * .25 # offset above costmap
-            ways.cells.append(temp)
-            count = 0
-        count+=1
-    if nodes:
-        wayPoints.append(node2pose(nodes[-1], grid))
+    nextNode = None
+    for node in path:
+        if node.prevNode:
+            if nextNode:
+                #isntTooClose = (math.sqrt((node2pose(node,grid).pose.position.x - wayPoints[-1].pose.position.x) ** 2 +
+                #                       (node2pose(node,grid).pose.position.y - wayPoints[-1].pose.position.y) ** 2) > 3 * grid.map_info.resolution)
+                isVitalWaypoint = (count >= distCount or not node.orientation == node.prevNode.orientation) #and isntTooClose
+            else:
+                isVitalWaypoint = True
 
-    path_pub.publish(path)
-    wayPub.publish(ways)
+            # print "      too close: " + str(isTooClose) + "    vital: " + str(is isVitalWaypoint)
+
+            if isVitalWaypoint:
+                wayPoints.append(node2pose(node, grid))
+                temp = ROSPoint()
+                temp.x = (node.point.x+.5) * displayPath.cell_width + grid.map_info.origin.position.x
+                temp.y = (node.point.y+.5) * displayPath.cell_height + grid.map_info.origin.position.y
+                temp.z = displayPath.cell_height * .25 # offset above costmap
+                displayWays.cells.append(temp)
+                count = 0
+            count+=1
+        nextNode = node
+    if path:
+        wayPoints.append(node2pose(path[-1], grid))
+
+    wayPub.publish(displayWays)
 
     return wayPoints
-
 
 
 # finds the path to goal from start and returns the waypoints to reach there
