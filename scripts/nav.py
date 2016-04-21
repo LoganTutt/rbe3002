@@ -284,6 +284,7 @@ def navToPose(goal):
     statuses.status_list.append(status)
     status_pub.publish(statuses)
 
+
 def init():
     global pub
     global odom_tf
