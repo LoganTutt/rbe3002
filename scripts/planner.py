@@ -151,30 +151,34 @@ def aStar(start, goal, grid, wayPub):
     displayWays.header.stamp = rospy.get_rostime()
 
     # put the vital waypoints into an array of poseStamped (waypoints), and a GridCells (displayWays) to be displayed
-    distCount = .75/grid.map_info.resolution
+    maxCount = .75/grid.map_info.resolution   # the max number of gridcells between wayPoints
+    minCount = 2                                # the min number of gridcells between wayPoints
     count = 0
-    nextNode = None
-    for node in path:
-        if node.prevNode:
-            if nextNode:
-                #isntTooClose = (math.sqrt((node2pose(node,grid).pose.position.x - wayPoints[-1].pose.position.x) ** 2 +
-                #                       (node2pose(node,grid).pose.position.y - wayPoints[-1].pose.position.y) ** 2) > 3 * grid.map_info.resolution)
-                isVitalWaypoint = (count >= distCount or not node.orientation == node.prevNode.orientation) #and isntTooClose
-            else:
-                isVitalWaypoint = True
+    for curNode in path:
+        if not curNode.prevNode:  # if on the start node
+            isVitalWaypoint = False
+        elif curNode.point.equals(goalPoint):  # if on the goal node
+            isVitalWaypoint = True
+        elif not len(wayPoints):  # if there is nothing in the waypoints array
+            isntTooClose = (math.sqrt((node2pose(curNode, grid).pose.position.x - node2pose(path[1],grid).pose.position.x) ** 2 +
+                                      (node2pose(curNode, grid).pose.position.y - node2pose(path[1],grid).pose.position.y) ** 2) > minCount * grid.map_info.resolution)
+            isVitalWaypoint = (
+                          count >= maxCount or not curNode.orientation == curNode.prevNode.orientation) and isntTooClose
+        else:
+            isntTooClose = (math.sqrt((node2pose(curNode, grid).pose.position.x - wayPoints[-1].pose.position.x) ** 2 +
+                                      (node2pose(curNode, grid).pose.position.y - wayPoints[-1].pose.position.y) ** 2) > minCount * grid.map_info.resolution)
+            isVitalWaypoint = (
+                          count >= maxCount or not curNode.orientation == curNode.prevNode.orientation) and isntTooClose
 
-            # print "      too close: " + str(isTooClose) + "    vital: " + str(is isVitalWaypoint)
-
-            if isVitalWaypoint:
-                wayPoints.append(node2pose(node, grid))
-                temp = ROSPoint()
-                temp.x = (node.point.x+.5) * displayPath.cell_width + grid.map_info.origin.position.x
-                temp.y = (node.point.y+.5) * displayPath.cell_height + grid.map_info.origin.position.y
-                temp.z = displayPath.cell_height * .25 # offset above costmap
-                displayWays.cells.append(temp)
-                count = 0
-            count+=1
-        nextNode = node
+        if isVitalWaypoint:
+            wayPoints.append(node2pose(curNode, grid))
+            temp = ROSPoint()
+            temp.x = (curNode.point.x+.5) * displayPath.cell_width + grid.map_info.origin.position.x
+            temp.y = (curNode.point.y+.5) * displayPath.cell_height + grid.map_info.origin.position.y
+            temp.z = displayPath.cell_height * .25 # offset above costmap
+            displayWays.cells.append(temp)
+            count = 0
+        count+=1
     if path:
         wayPoints.append(node2pose(path[-1], grid))
 
