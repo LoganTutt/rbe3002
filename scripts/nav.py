@@ -313,7 +313,9 @@ def init():
 
     odom_sub = rospy.Subscriber('/odom', Odometry, odomCallback, queue_size=1)
     rospy.Timer(rospy.Duration(.05), navBot.updatePID)
-
+    
+    getGlobalPath = rospy.ServiceProxy('global_path', CalcPath)
+    getLocalPath = rospy.ServiceProxy('local_path', CalcPath)
 
 
 
@@ -325,8 +327,6 @@ if __name__ == '__main__':
     init()
     goal_sub = rospy.Subscriber('/rbe_nav_goal', PoseStamped, navToPose, queue_size=3)
 
-    getGlobalPath = rospy.ServiceProxy('global_path', CalcPath)
-    getLocalPath = rospy.ServiceProxy('local_path', CalcPath)
 
     rospy.sleep(rospy.Duration(1, 0))
 
