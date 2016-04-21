@@ -273,8 +273,8 @@ def navToPose(goal):
         else:
             print " - goal not navigable, ending navigation"
             break
-
-        if len(globalPath.poses) == 1 and len(localPath.poses) == 1:
+        gridDist = math.sqrt((globalPath.poses[-1].pose.position.x - navBot.cur.pose.position.x)**2 + (globalPath.poses[-1].pose.position.y - navBot.cur.pose.position.y)**2)
+        if (len(globalPath.poses) == 1 and len(localPath.poses) == 1) or gridDist <= navBot.distThresh * 3:
             print " Finished All Navigation!"
             break
     navBot.rotateTo(getAngleFromPose(goal.pose))
@@ -298,7 +298,7 @@ def init():
 
     global navBot
 
-    navBot = Navigate(.1, .025, "sim")  # pass these the resolutions that you want.
+    navBot = Navigate(.1, .025, "hawk-i")  # pass these the resolutions that you want.
 
     transformer = tf.TransformListener()
 
