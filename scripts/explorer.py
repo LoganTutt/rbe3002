@@ -9,8 +9,43 @@ from actionlib_msgs.msg import GoalStatusArray, GoalStatus
 
 
 def getNextFrontier():
-    pass
+    startPoint = planner.pose2point(nav.navBot.cur,gobal_map)
+    curNode = Node(startPoint,initOri,startPoint,None)
+    nodes = {curNode.key: curNode
+    frontier = [frontier]
+    nextFrontier = []
+    
+    while frontier
+        for node in frontier:
+            if(global_map.getVal(curNode.point.x,curNode.point.y) != -1):
+                curNode = node
+                break
+            nodes[node.key()] = node
+            nextFrontier.append(curNode.createNewNodes(nodes,global_map,75))
+        frontier = nextFrontier
 
+
+    while (frontier and global_map.getVal(curNode.point.x,curNode.point.y) != -1):
+         for node in fron:
+            # add the nodes to frontier based on cost
+            for ind in range(0,len(frontier)):
+                if (kid.cost < frontier[ind].cost):
+                    frontier.insert(ind,kid)
+                    break
+                elif (ind == len(frontier) - 1): frontier.append(kid)
+
+            # add the new node to the dictionary of nodes
+            nodes[kid.key()] = kid
+
+            #add kids' costs to the cost_map
+            cost_map.setVal(kid.point.x, kid.point.y, int(kid.cost))
+
+        frontier.remove(curNode)
+        if not frontier:
+            print "   a* -> No more frontier"
+            return None
+        
+        curNode = frontier[0] #curNode becomes the frontier node with the lowest cost
 
 def getNextWaypoint():
     pass
@@ -19,7 +54,9 @@ def getNextWaypoint():
 def exploreMap():
     global reachedGoal
 
+    nav.navBot.rotateTo(-math.pi/2)
     nav.navBot.rotateTo(-math.pi)
+    nav.navBot.rotateTo(math.pi/2)
     nav.navBot.rotateTo(0)
 
     print "starting search"
