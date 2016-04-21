@@ -6,7 +6,7 @@ from nav_msgs.msg import OccupancyGrid, GridCells, Path
 from map_msgs.msg import OccupancyGridUpdate
 from geometry_msgs.msg import Point as ROSPoint
 from actionlib_msgs.msg import GoalStatusArray, GoalStatus
-
+from nodes import Grid
 
 def getNextFrontier():
     startPoint = planner.pose2point(nav.navBot.cur,gobal_map)
@@ -28,9 +28,13 @@ def getNextFrontier():
     print "No Frontiers found"
     return None
 
+
+def getNextWaypoint():
+    node = getNextFrontier()
+    return planner.node2pose(node,global_map)
         
         
-def expandFrontier(Node start):
+def expandFrontier(start):
     nodes = {start.key(): start}
     fullFrontier = [start]
     curFrontier = [start]
@@ -66,26 +70,28 @@ def exploreMap():
 
     waypoint = getNextWaypoint()
     while waypoint and not rospy.is_shutdown():
-        goal_pub.publish(waypoint)
+        #goal_pub.publish(waypoint)
+        nav.navToPose(waypoint)
         reachedGoal = False
         rospy.sleep(.01)
         while reachedGoal and not rospy.is_shutdown():
             pass
-        waypoint = getNextFrontier()
+        waypoint = getNextWaypoint()
 
     print "finished exploring map"
 
 
-def mapCallback(data_map)
+def mapCallback(data_map):
     global global_map
-    global_map = Grid(data_map.info.width, data_map.map_info.height, data_map.data, data_map.header.frame_id)
+    global_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info, data_map.header.frame_id)
 
 
 def statusCallback(status):
     global reachedGoal
 
-    statusVal = status.something
-    reachedGoal = statusVal == 3
+    if(status.status_list):
+        statusVal = status.status_list[0].goal_id
+        reachedGoal = statusVal == 3
 
 def run():
     global goal_pub
