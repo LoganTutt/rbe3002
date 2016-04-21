@@ -108,7 +108,7 @@ class Grid:
         self.frame_id = frame_id
 
     def getValFromPoint(self,point):
-        return getVal(point.x,point.y)
+        return self.getVal(point.x,point.y)
 
     # gets the stored value that corresponds to the inputted (x,y) location
     def getVal(self,x,y):
