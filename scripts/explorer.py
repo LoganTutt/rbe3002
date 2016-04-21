@@ -11,44 +11,47 @@ from actionlib_msgs.msg import GoalStatusArray, GoalStatus
 def getNextFrontier():
     startPoint = planner.pose2point(nav.navBot.cur,gobal_map)
     curNode = Node(startPoint,initOri,startPoint,None)
-    nodes = {curNode.key: curNode
+    nodes = {curNode.key: curNode}
     frontier = [frontier]
     nextFrontier = []
     
-    while frontier
+    while frontier:
         for node in frontier:
             if(global_map.getVal(curNode.point.x,curNode.point.y) != -1):
-                curNode = node
-                break
+                front = expandFrontier(node)
+                if front:
+                    return front
             nodes[node.key()] = node
             nextFrontier.append(curNode.createNewNodes(nodes,global_map,75))
         frontier = nextFrontier
 
+    print "No Frontiers found"
+    return None
 
-    while (frontier and global_map.getVal(curNode.point.x,curNode.point.y) != -1):
-         for node in fron:
-            # add the nodes to frontier based on cost
-            for ind in range(0,len(frontier)):
-                if (kid.cost < frontier[ind].cost):
-                    frontier.insert(ind,kid)
-                    break
-                elif (ind == len(frontier) - 1): frontier.append(kid)
-
-            # add the new node to the dictionary of nodes
-            nodes[kid.key()] = kid
-
-            #add kids' costs to the cost_map
-            cost_map.setVal(kid.point.x, kid.point.y, int(kid.cost))
-
-        frontier.remove(curNode)
-        if not frontier:
-            print "   a* -> No more frontier"
-            return None
         
-        curNode = frontier[0] #curNode becomes the frontier node with the lowest cost
+        
+def expandFrontier(Node start):
+    nodes = {start.key(): start}
+    fullFrontier = [start]
+    curFrontier = [start]
+    while curFrontier:
+        curNode = curFrontier[0]
+        for node in curNode.createNewNodes(nodes,global_map,75):
+          if global_map.getValFromPoint(node.point) == -1:
+              for tempNode in node.createNewNodes(nodes,global_map,75):
+                  if tempNode != -1:
+                      nodes[node.key()] = node
+                      curFrontier.append(node)
+                      break
+        fullFrontier.append(curNode)
+        curFrontier.remove(curNode)
+        if curNode:
+            curNode = curFrontier[0]
 
-def getNextWaypoint():
-    pass
+    if len(frontier) > .4/global_map.map_info.resolution:
+        return start
+    else:
+        return None
 
 
 def exploreMap():
@@ -68,7 +71,7 @@ def exploreMap():
         rospy.sleep(.01)
         while reachedGoal and not rospy.is_shutdown():
             pass
-        waypoint = getNextWaypoint()
+        waypoint = getNextFrontier()
 
     print "finished exploring map"
 
@@ -90,8 +93,8 @@ def run():
 
 
     rospy.init_node('exploration_node')
-    navType = rospy.get_param('~nav',default = 'gMap')
-    if navType != 'gMap': rospy.delete_param('~nav')
+    navType = rospy.get_param('~nav',default = 'rbe')
+    if navType != 'rbe': rospy.delete_param('~nav')
     if navType == 'rbe':
         print "Using rbe nav"
         goal_pub = rospy.Publisher('/rbe_goal',PoseStamped,queue_size=1)
