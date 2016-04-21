@@ -83,15 +83,14 @@ def aStar(start, goal, grid, wayPub):
     initOri = round(initYaw / (math.pi / 2)) + 1
     if initOri <= 0: initOri += 4
 
-
-    #A* here
+    # A* here
     curNode = Node(startPoint, initOri, goalPoint, None)
     nodes = {curNode.key: curNode}
     frontier = [curNode]
 
-    #keep searching the frontiers based on the lowest cost until goal is reached
+    # keep searching the frontiers based on the lowest cost until goal is reached
     while (not curNode.point.equals(goalPoint)):
-        nodeKids = curNode.createNewNodes(nodes, grid, cutoffVal) #create new nodes that are neighbors to current node
+        nodeKids = curNode.createNewNodes(nodes, grid, cutoffVal) # create new nodes that are neighbors to current node
         for kid in nodeKids:
             # add the nodes to frontier based on cost
             for ind in range(0,len(frontier)):
@@ -111,14 +110,14 @@ def aStar(start, goal, grid, wayPub):
             print "   a* -> No more frontier"
             return None
         
-        curNode = frontier[0] #curNode becomes the frontier node with the lowest cost
+        curNode = frontier[0] # curNode becomes the frontier node with the lowest cost
 
-    #order and optimize the waypoints
+    # order and optimize the waypoints
     wayPoints = []
     path = GridCells()
     ways = GridCells()
 
-    #path is a GridCells, and is used to display the path in rviz
+    # path is a GridCells, and is used to display the path in rviz
     path.cell_height = grid.map_info.resolution
     path.cell_width = grid.map_info.resolution
     path.header.frame_id = grid.frame_id
@@ -132,7 +131,7 @@ def aStar(start, goal, grid, wayPub):
     temp = ROSPoint()   # rviz "GridCell" displays ROSPoints
     temp.x = (curNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
     temp.y = (curNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
-    temp.z = path.cell_height * .25 #offset above costmap
+    temp.z = path.cell_height * .25 # offset above costmap
     ways.cells.append(temp)
 
     nodes = []
@@ -141,7 +140,7 @@ def aStar(start, goal, grid, wayPub):
         rosPoint = ROSPoint()
         rosPoint.x = (curNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
         rosPoint.y = (curNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
-        rosPoint.z = path.cell_height * .125 #offset above path
+        rosPoint.z = path.cell_height * .125 # offset above path
         path.cells.append(rosPoint)
         curNode = curNode.prevNode
 
@@ -153,7 +152,7 @@ def aStar(start, goal, grid, wayPub):
             temp = ROSPoint()
             temp.x = (node.prevNode.point.x+.5) * path.cell_width + grid.map_info.origin.position.x
             temp.y = (node.prevNode.point.y+.5) * path.cell_height + grid.map_info.origin.position.y
-            temp.z = path.cell_height * .25 #offset above costmap
+            temp.z = path.cell_height * .25 # offset above costmap
             ways.cells.append(temp)
             count = 0
         count+=1
@@ -167,13 +166,13 @@ def aStar(start, goal, grid, wayPub):
 
 
 
-#finds the path to goal from start and returns the waypoints to reach there
+# finds the path to goal from start and returns the waypoints to reach there
 def calcWaypoints(start, goal, grid, wayPub):
     global cost_map
 
     cost_map = Grid(grid.width, grid.height, [0]*len(grid.data), grid.map_info, grid.frame_id)
 
-    dao = aStar(start, goal, grid, wayPub)       #dao = way in Chinese
+    dao = aStar(start, goal, grid, wayPub)       # dao = way in Chinese
 
     if not dao:
         print "   a* -> no path found"
@@ -187,10 +186,10 @@ def calcWaypoints(start, goal, grid, wayPub):
     return way
 
 
-#subscriber callbacks
+# subscriber callbacks
 
-#data_map is an OccupancyGrid
-#stores the incoming global map
+# data_map is an OccupancyGrid
+# stores the incoming global map
 def globalMapCallback(data_map):
     global global_map
     global global_current_map_pub
@@ -200,8 +199,8 @@ def globalMapCallback(data_map):
     global_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info, data_map.header.frame_id)
 
 
-#data_map is an OccupancyGrid
-#stores the incoming local map
+# data_map is an OccupancyGrid
+# stores the incoming local map
 def localMapCallback(data_map):
     global local_map
     global local_current_map_pub
@@ -211,7 +210,7 @@ def localMapCallback(data_map):
     local_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info, data_map.header.frame_id)
 
 
-#service handler. Takes in a start and end pose then returns a path
+# service handler. Takes in a start and end pose then returns a path
 def globalCalcPath(req):
     global cost_map
 
@@ -225,7 +224,7 @@ def globalCalcPath(req):
     return CalcPathResponse(path)
 
 
-#service handler. Takes in a start and end pose then returns a path
+# service handler. Takes in a start and end pose then returns a path
 def localCalcPath(req):
 
     start = req.start
@@ -269,7 +268,7 @@ def run():
 
     # rospy.Timer(rospy.Duration(1), printUpdatedMaps) # for debugging
 
-    #this handles updating the local_cost_map
+    # this handles updating the local_cost_map
     while not rospy.is_shutdown():
         if (cost_map != None):
             cost_map.publish(local_costmap_pub)
@@ -282,7 +281,7 @@ def init():
     global local_map
     global cost_map
 
-    #make publishers global so that they can be used anywhere
+    # make publishers global so that they can be used anywhere
     global local_costmap_pub
     global path_pub
     global waypoints_pub
