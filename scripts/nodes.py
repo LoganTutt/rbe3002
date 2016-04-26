@@ -77,8 +77,8 @@ class Node:
     # blockedThresh is the cutoff to use for determining if a location is blocked
     def createNewNodes(self, curNodes, world, blockedThresh):
         # arrays to easily create new neighbor nodes
-        dx = [1, 1, 0, 0, -1, -1, 0, 0]
-        dy = [0, 1, 0, 1, 0, -1, 0, -1]
+        dx = [1, 1, 0, -1, -1, -1, 0, 1]
+        dy = [0, 1, 1, 1, 0, -1, -1, -1]
         theta = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5]
         newNodes = []
         
