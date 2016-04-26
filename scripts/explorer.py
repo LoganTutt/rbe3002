@@ -23,8 +23,10 @@ def getNextFrontier():
                 if front:
                     print "Found frontier"
                     return front
-            nodes[node.key()] = node
-            nextFrontier.append(node.createNewNodes(nodes,tempMap,75))
+            tempNodes = node.createNewNodes(nodes,tempMap,75)
+            for n in tempNodes:
+                 nodes[n.key()] = n
+            nextFrontier.extend(tempNodes)
         frontier = nextFrontier
         nextFrontier = []
 
