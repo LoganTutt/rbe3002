@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import rospy, planner, nav, tf, math
+import rospy, planner, nav, tf, math, copy
 from geometry_msgs.msg import Pose, PoseStamped
 from nav_msgs.msg import OccupancyGrid, GridCells, Path
 from map_msgs.msg import OccupancyGridUpdate
@@ -14,16 +14,19 @@ def getNextFrontier():
     nodes = {curNode.key(): curNode}
     frontier = [curNode]
     nextFrontier = []
+    tempMap = copy.deepcopy(global_map)
     
     while frontier:
         for node in frontier:
-            if(global_map.getVal(node.point.x,node.point.y) == -1):
+            if(tempMap.getVal(node.point.x,node.point.y) == -1):
                 front = expandFrontier(node)
                 if front:
                     print "Found frontier"
                     return front
-            nodes[node.key()] = node
-            nextFrontier.append(node.createNewNodes(nodes,global_map,75))
+            tempNodes = node.createNewNodes(nodes,tempMap,75)
+            for n in tempNodes:
+                 nodes[n.key()] = n
+            nextFrontier.extend(tempNodes)
         frontier = nextFrontier
         nextFrontier = []
 
