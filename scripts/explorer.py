@@ -17,12 +17,13 @@ def getNextFrontier():
     
     while frontier:
         for node in frontier:
-            if(global_map.getVal(curNode.point.x,curNode.point.y) != -1):
+            if(global_map.getVal(node.point.x,node.point.y) == -1):
                 front = expandFrontier(node)
                 if front:
+                    print "Found frontier"
                     return front
             nodes[node.key()] = node
-            nextFrontier.append(curNode.createNewNodes(nodes,global_map,75))
+            nextFrontier.append(node.createNewNodes(nodes,global_map,75))
         frontier = nextFrontier
 
     print "No Frontiers found"
@@ -71,11 +72,8 @@ def exploreMap():
     waypoint = getNextWaypoint()
     while waypoint and not rospy.is_shutdown():
         #goal_pub.publish(waypoint)
+        print "Navigating to: " + str(waypoint.pose.position.x) +","+str(waypoint.pose.position.y)
         nav.navToPose(waypoint)
-        reachedGoal = False
-        rospy.sleep(.01)
-        while reachedGoal and not rospy.is_shutdown():
-            pass
         waypoint = getNextWaypoint()
 
     print "finished exploring map"
@@ -85,13 +83,6 @@ def mapCallback(data_map):
     global global_map
     global_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info, data_map.header.frame_id)
 
-
-def statusCallback(status):
-    global reachedGoal
-
-    if(status.status_list):
-        statusVal = status.status_list[0].goal_id
-        reachedGoal = statusVal == 3
 
 def run():
     global goal_pub
@@ -114,7 +105,7 @@ def run():
     frontier_pub =rospy.Publisher('/frontier/frontier',GridCells,queue_size=1) 
 
 
-    status_sub = rospy.Subscriber('/move_base/status', GoalStatusArray, statusCallback, queue_size=1)
+    #status_sub = rospy.Subscriber('/move_base/status', GoalStatusArray, statusCallback, queue_size=1)
     map_sub = rospy.Subscriber('/map',OccupancyGrid,mapCallback, queue_size=1)
 
 
