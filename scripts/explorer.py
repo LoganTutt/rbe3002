@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import rospy, planner, nav, tf, math
+import rospy, planner, nav, tf, math, copy
 from geometry_msgs.msg import Pose, PoseStamped
 from nav_msgs.msg import OccupancyGrid, GridCells, Path
 from map_msgs.msg import OccupancyGridUpdate
@@ -14,16 +14,17 @@ def getNextFrontier():
     nodes = {curNode.key(): curNode}
     frontier = [curNode]
     nextFrontier = []
+    tempMap = copy.deepcopy(global_map)
     
     while frontier:
         for node in frontier:
-            if(global_map.getVal(node.point.x,node.point.y) == -1):
+            if(tempMap.getVal(node.point.x,node.point.y) == -1):
                 front = expandFrontier(node)
                 if front:
                     print "Found frontier"
                     return front
             nodes[node.key()] = node
-            nextFrontier.append(node.createNewNodes(nodes,global_map,75))
+            nextFrontier.append(node.createNewNodes(nodes,tempMap,75))
         frontier = nextFrontier
         nextFrontier = []
 
@@ -37,17 +38,20 @@ def getNextWaypoint():
         return planner.node2pose(node,global_map)
     return None
         
-        
 def expandFrontier(start):
+    print "expanding frontier"
     nodes = {start.key(): start}
     fullFrontier = [start]
     curFrontier = [start]
+    endPoints = []
     while curFrontier:
         curNode = curFrontier[0]
         for node in curNode.createNewNodes(nodes,global_map,75):
-          if global_map.getValFromPoint(node.point) == -1:
+          if global_map.getValFromPoint(node.point) == -1 and node.orientation%1==0:
               for tempNode in node.createNewNodes(nodes,global_map,75):
-                  if tempNode != -1:
+                  if global_map.getValFromPoint(tempNode.point) != -1:
+                      if global_map.getValFromPoint(tempNode.point) > 75:
+                          endPoints.append(tempNode)
                       nodes[node.key()] = node
                       curFrontier.append(node)
                       break
@@ -57,7 +61,10 @@ def expandFrontier(start):
             curNode = curFrontier[0]
 
     if len(fullFrontier) > .4/global_map.map_info.resolution:
-        return start
+        if len(endPoints) >= 2:
+            return Point((endPoints[1].point.x-endPoints[0].point.x)/2,(endPoints[1].point.y-endPoints[0].point.y)/2) 
+        else:
+            return start
     else:
         return None
 
@@ -74,7 +81,7 @@ def exploreMap():
 
     waypoint = getNextWaypoint()
     while waypoint and not rospy.is_shutdown():
-        #goal_pub.publish(waypoint)
+        goal_pub.publish(waypoint)
         print "Navigating to: " + str(waypoint.pose.position.x) +","+str(waypoint.pose.position.y)
         nav.navToPose(waypoint)
         waypoint = getNextWaypoint()
