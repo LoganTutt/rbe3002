@@ -6,13 +6,13 @@ from nav_msgs.msg import OccupancyGrid, GridCells, Path
 from map_msgs.msg import OccupancyGridUpdate
 from geometry_msgs.msg import Point as ROSPoint
 from actionlib_msgs.msg import GoalStatusArray, GoalStatus
-from nodes import Grid
+from nodes import Grid, Node, Point
 
 def getNextFrontier():
-    startPoint = planner.pose2point(nav.navBot.cur,gobal_map)
-    curNode = Node(startPoint,initOri,startPoint,None)
-    nodes = {curNode.key: curNode}
-    frontier = [frontier]
+    startPoint = planner.pose2point(nav.navBot.cur.pose,global_map)
+    curNode = Node(startPoint,1,startPoint,None)
+    nodes = {curNode.key(): curNode}
+    frontier = [curNode]
     nextFrontier = []
     
     while frontier:
@@ -25,6 +25,7 @@ def getNextFrontier():
             nodes[node.key()] = node
             nextFrontier.append(node.createNewNodes(nodes,global_map,75))
         frontier = nextFrontier
+        nextFrontier = []
 
     print "No Frontiers found"
     return None
@@ -32,7 +33,9 @@ def getNextFrontier():
 
 def getNextWaypoint():
     node = getNextFrontier()
-    return planner.node2pose(node,global_map)
+    if node:
+        return planner.node2pose(node,global_map)
+    return None
         
         
 def expandFrontier(start):
@@ -50,10 +53,10 @@ def expandFrontier(start):
                       break
         fullFrontier.append(curNode)
         curFrontier.remove(curNode)
-        if curNode:
+        if curFrontier:
             curNode = curFrontier[0]
 
-    if len(frontier) > .4/global_map.map_info.resolution:
+    if len(fullFrontier) > .4/global_map.map_info.resolution:
         return start
     else:
         return None
