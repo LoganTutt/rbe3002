@@ -14,6 +14,7 @@ from rbe3002.srv import *
 wheel_rad = 3.5 / 100.0  # cm to m
 wheel_base = 23.0 / 100.0  # cm to m
 
+stopDrive = False
 
 class Navigate:
     start = PoseStamped()
@@ -42,6 +43,8 @@ class Navigate:
     curDriveDelta = 0.0
     prevDriveDelta = 0.0
     totalDriveDelta = 0.0
+
+
 
 
     def __init__(self, angleThresh, distThresh, turtleBot):
@@ -251,7 +254,7 @@ def getAngleFromPose(pose):
 def navToPose(goal):
     print "Starting Navigation!"
     # get path from A*
-    while True:
+    while not stopDrive:
         # find the global path
         globalPathServ = getGlobalPath(navBot.cur.pose, goal.pose)
         globalPath = globalPathServ.path

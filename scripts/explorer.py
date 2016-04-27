@@ -8,6 +8,7 @@ from geometry_msgs.msg import Point as ROSPoint
 from actionlib_msgs.msg import GoalStatusArray, GoalStatus
 from nodes import Grid, Node, Point
 from Queue import Queue
+from rbe3002.srv import *
 
 def getNextFrontier():
     startPoint = planner.pose2point(nav.navBot.cur.pose,global_map)
@@ -22,15 +23,19 @@ def getNextFrontier():
     cells.cell_width = global_map.map_info.resolution
     cells.header.frame_id = global_map.frame_id
     cells.header.stamp = rospy.Time(0)
-    
-    while frontier:
+
+    #while there are still nodes in the frontier
+    while not frontier.empty():
         node = frontier.get()
+        #if the node is a frontier, expand the frontier
         if tempMap.getValFromPoint(node.point) == -1:
-            front = expandFrontier(node)
+            front = expandFrontier(node, nodes)
+            #if the frontier was valid, return it
             if front:
                 print "found Frontier"
                 return front
             continue
+        #if the node was no a frontier, expand the node and add it to the back of the queue
         tempNodes = node.createNewNodes(nodes,tempMap,75)
         for n in tempNodes:
             nodes[n.key()] = n
@@ -43,31 +48,6 @@ def getNextFrontier():
 
             frontier.put(n)
 
-#    while frontier:
-#        for node in frontier:
-#            #if node is unexplored
-#            if(tempMap.getVal(node.point.x,node.point.y) == -1):
-#                front = expandFrontier(node)
-#                #if the frontier is big enough
-#                if front:
-#                    print "Found frontier"
-#                    return front
-#                break
-#            tempNodes = node.createNewNodes(nodes,tempMap,75)
-#            #add new nodes
-#            for n in tempNodes:
-#                nodes[n.key()] = n
-#                p = ROSPoint()
-#                tPose = planner.node2pose(n,global_map)
-#                p.x=tPose.pose.position.x
-#                p.y = tPose.pose.position.y
-#                cells.cells.append(p)
-#                frontier_pub.publish(cells)
-#
-#            nextFrontier.extend(tempNodes)
-#        frontier = nextFrontier
-#        nextFrontier = []
-
     print "No Frontiers found"
     return None
 
@@ -78,7 +58,7 @@ def getNextWaypoint():
         return planner.node2pose(node,global_map)
     return None
         
-def expandFrontier(start):
+def expandFrontier(start, nodeDict):
     print "expanding frontier"
     nodes = {start.key(): start}
     fullFrontier = []
@@ -89,15 +69,17 @@ def expandFrontier(start):
     cells.cell_width = global_map.map_info.resolution
     cells.header.frame_id = global_map.frame_id
     cells.header.stamp = rospy.Time(0)
+
+    #while there are still nodes to explore
     while curFrontier:
         curNode = curFrontier[0]
+        #expand the node
         for node in curNode.createNewNodes(nodes,global_map,75):
+            #check if the expanded nodes are unexplored and is manahttan away
             if global_map.getValFromPoint(node.point) == -1 and node.orientation%1==0:
+                #check that at least one child node of the current node is explored, then add it to the expansion
                 for tempNode in node.createNewNodes(nodes,global_map,101):
-                    if global_map.getValFromPoint(tempNode.point) > 75:
-                        endPoints.append(tempNode)
-                        break
-                    if global_map.getValFromPoint(tempNode.point) != -1:
+                    if global_map.getValFromPoint(tempNode.point) != -1 and global_map.getValFromPoint(tempNode.point) <= 75:
                         curFrontier.append(node)
                         nodes[node.key()] = node
                         break
@@ -113,15 +95,28 @@ def expandFrontier(start):
 
     print "len = " + str(len(fullFrontier))
     if len(fullFrontier) > .4/global_map.map_info.resolution:
-        if len(endPoints) >= 2:
-            print "found bounded edge"
-            tempNode =  Node(Point((endPoints[1].point.x+endPoints[0].point.x)/2,(endPoints[1].point.y+endPoints[0].point.y)/2),1,start.point,None)
-            if planner.global_map.getValFromPoint(tempNode.point) > 60:
-                print "blocked node"
+        for n in fullFrontier:
+            if planner.global_map.getValFromPoint(n.point) < 60:
+                globalPathServ = getGlobalPath(nav.navBot.cur.pose, planner.node2pose(n,global_map).pose)
+                globalPath = globalPathServ.path
+                if(globalPath.poses):
+                    print "returning node"
+                    return n
+                for n2 in fullFrontier:
+                    nodeDict[n2.key()] = n2
+                print "Failed Path"
                 return None
-        else:
-            print "found unbounded edge"
-            return start
+
+        print "no valid node in frontier"
+        # if len(endPoints) >= 2:
+        #     print "found bounded edge"
+        #     tempNode =  Node(Point((endPoints[1].point.x+endPoints[0].point.x)/2,(endPoints[1].point.y+endPoints[0].point.y)/2),1,start.point,None)
+        #     if planner.global_map.getValFromPoint(tempNode.point) > 60:
+        #         print "blocked node"
+        #         return None
+        # else:
+        #     print "found unbounded edge"
+        #     return start
     else:
         print "no Frontier"
         return None
@@ -145,7 +140,16 @@ def exploreMap():
     while waypoint and not rospy.is_shutdown():
         goal_pub.publish(waypoint)
         print "Navigating to: " + str(waypoint.pose.position.x) +","+str(waypoint.pose.position.y)
+        nav.stopDrive = False
         nav.navToPose(waypoint)
+        if not nav.stopDrive:
+            nav.navBot.rotateTo(-math.pi / 2)
+            rospy.sleep(1)
+            nav.navBot.rotateTo(-math.pi)
+            rospy.sleep(1)
+            nav.navBot.rotateTo(math.pi / 2)
+            rospy.sleep(1)
+            nav.navBot.rotateTo(0)
         waypoint = getNextWaypoint()
 
     print "finished exploring map"
@@ -154,15 +158,17 @@ def exploreMap():
 def mapCallback(data_map):
     global global_map
     global_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info, data_map.header.frame_id)
+    nav.stopDrive = True
 
 
 def run():
     global goal_pub
     global frontier_pub
+    global getGlobalPath
 
 
     rospy.init_node('exploration_node')
-    navType = rospy.get_param('~nav',default = 'rbe')
+    navType = rospy.get_param('~nav', default = 'rbe')
     if navType != 'rbe': rospy.delete_param('~nav')
     if navType == 'rbe':
         print "Using rbe nav"
@@ -174,7 +180,8 @@ def run():
     planner.init()
     nav.init()
 
-    frontier_pub =rospy.Publisher('/frontier/frontier',GridCells,queue_size=1) 
+    frontier_pub =rospy.Publisher('/frontier/frontier',GridCells,queue_size=1)
+    getGlobalPath = rospy.ServiceProxy('global_path', CalcPath)
 
 
     #status_sub = rospy.Subscriber('/move_base/status', GoalStatusArray, statusCallback, queue_size=1)

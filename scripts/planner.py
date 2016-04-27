@@ -71,7 +71,7 @@ def aStar(start, goal, grid, wayPub):
     roll, pitch, yaw = euler_from_quaternion(quat)
     initYaw = yaw  # returns the yaw
     
-    cutoffVal = 60
+    cutoffVal = 67
     if grid.getVal(startPoint.x, startPoint.y) > cutoffVal:
         cutoffVal = grid.getVal(startPoint.x, startPoint.y)
 
