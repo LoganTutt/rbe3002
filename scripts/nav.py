@@ -17,6 +17,7 @@ wheel_base = 23.0 / 100.0  # cm to m
 stopDrive = False
 
 class Navigate:
+    runPID = True
     start = PoseStamped()
     goal = PoseStamped()
     cur = PoseStamped()
@@ -169,28 +170,35 @@ class Navigate:
         self.linVel = 0.0
         self.resetPID()
 
+    # Turns in a circle, returns when done
+    def rotateCircle(self):
+            self.runPID = False
+            # initialize position
+            initAng = self.getCurrentAngle()
+            atGoal = False
 
-    # Accepts an angle and makes the robot rotate around it. Assume there's no reason for
-    def rotateBy(self, angle):
 
-        # initialize position
-        initAng = self.cur.orientation.z
-        atGoal = False
-
-        while (not atGoal and not rospy.is_shutdown()):
-            curAng = self.cur.orientation.z
-            self.goalAngle = abs(math.atan2(math.sin(curAng - initAng), math.cos(curAng - initAng)))
-            atGoal = (self.curTurnDelta >= self.angleThresh)
-
-            # keep going at given speed
             self.linVel = 0.0
-            rospy.sleep(0.1)
+            self.angVel = 2
+            rospy.sleep(1)
+            while (not atGoal and not rospy.is_shutdown()):
+                if not abs(self.getCurrentAngle() - initAng) < self.angleThresh:
+                    # keep going at given speed
 
-        # stop when goal is reached
-        self.resetPID()
-
+                    self.linVel = 0.0
+                    self.angVel = 1
+                    rospy.sleep(0.1)
+                else:
+                    atGoal = True
+            # stop when goal is reached
+            print("Circle Done")
+            self.runPID = True
+            self.resetPID()
 
     def updatePID(self, event):
+        if not self.runPID:
+            self.pubTwist()
+            return
 
         self.prevTurnDelta = self.curTurnDelta
         timeDelta = .05  # abs(event.current_real - event.last_real)

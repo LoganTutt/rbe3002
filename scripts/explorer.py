@@ -125,13 +125,7 @@ def expandFrontier(start, nodeDict):
 def exploreMap():
     global reachedGoal
 
-    nav.navBot.rotateTo(-math.pi/2)
-    rospy.sleep(1)
-    nav.navBot.rotateTo(-math.pi)
-    rospy.sleep(1)
-    nav.navBot.rotateTo(math.pi/2)
-    rospy.sleep(1)
-    nav.navBot.rotateTo(0)
+    nav.navBot.rotateCircle()
     rospy.sleep(5)
 
     print "starting search"
