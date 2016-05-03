@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import rospy, planner, nav, tf, math, copy
+import rospy, planner, nav, tf, math, copy, os
 from geometry_msgs.msg import Pose, PoseStamped
 from nav_msgs.msg import OccupancyGrid, GridCells, Path
 from map_msgs.msg import OccupancyGridUpdate
@@ -99,8 +99,16 @@ def expandFrontier(start, nodeDict):
             bot = nav.navBot.cur #planner.node2pose(nav.navBot.cur)
             node = planner.node2pose(n,global_map)
             squaredDistance = (bot.pose.position.x-node.pose.position.x)**2 + (bot.pose.position.y-node.pose.position.y)**2
-            if planner.global_map.getValFromPoint(n.point) < planner.costMapExpansion and squaredDistance >= 1:
-                globalPathServ = getGlobalPath(nav.navBot.cur.pose, planner.node2pose(n,global_map).pose)
+            point1 = planner.pose2point(nav.navBot.cur.pose, global_map)
+            point2 = n.point
+            splitPoint = Point(int((point1.x-point2.x)*.25+point2.x), int((point1.y-point2.y)*.25+point2.y))
+            if squaredDistance >= 1:
+                if planner.global_map.getValFromPoint(n.point) < planner.costMapExpansion:
+                    globalPathServ = getGlobalPath(nav.navBot.cur.pose, planner.node2pose(n,global_map).pose)
+#                elif planner.global_map.getValFromPoint(splitPoint) < planner.costMapExpansion:
+#                    globalPathServ = getGlobalPath(nav.navBot.cur.pose, planner.node2pose(Node(splitPoint,1,splitPoint,None),global_map).pose)
+                else:
+                    continue
                 globalPath = globalPathServ.path
                 if(globalPath.poses):
                     print "returning node"
@@ -109,6 +117,27 @@ def expandFrontier(start, nodeDict):
                     nodeDict[n2.key()] = n2
                 print "Failed Path"
                 return None
+
+        #os.system("spd-say \"Breadth First\"")
+        curNode = fullFrontier[int(len(fullFrontier)/2)]
+        nodes = {curNode.key(): curNode}
+        frontier = Queue()
+        frontier.put(curNode)
+        nextFrontier = []
+        tempMap = copy.deepcopy(global_map)
+
+        #while there are still nodes in the frontier
+        while not frontier.empty():
+            node = frontier.get()
+            if tempMap.getValFromPoint(node.point) == -1:
+                continue
+            if planner.global_map.getValFromPoint(node.point) < planner.costMapExpansion:
+                return node
+            #if the node was no a frontier, expand the node and add it to the back of the queue
+            tempNodes = node.createNewNodes(nodes,tempMap,101)
+            for n in tempNodes:
+                nodes[n.key()] = n
+                frontier.put(n)
 
         print "no valid node in frontier"
         # if len(endPoints) >= 2:
@@ -128,12 +157,14 @@ def expandFrontier(start, nodeDict):
 def exploreMap():
     global reachedGoal
 
+    #os.system("spd-say \"started Mapping\"")
     #nav.navBot.rotateCircle()
     rospy.sleep(5)
 
     print "starting search"
 
     waypoint = getNextWaypoint()
+
     while waypoint and not rospy.is_shutdown():
         goal_pub.publish(waypoint)
         print "Navigating to: " + str(waypoint.pose.position.x) +","+str(waypoint.pose.position.y)
@@ -144,6 +175,7 @@ def exploreMap():
             #nav.navBot.rotateCircle()
         waypoint = getNextWaypoint()
 
+    os.system("spd-say \"Done Mapping\"")
     print "finished exploring map"
 
 
