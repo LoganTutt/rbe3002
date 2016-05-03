@@ -140,7 +140,7 @@ def aStar(start, goal, grid, wayPub):
 
     ######################################################################################################
 
-    # figure out the optimal waypoints, store them
+    # figure out important waypoints, store them
     wayPoints = []
 
     # displayWays is a GridCells, and is used to display the waypoints in rviz

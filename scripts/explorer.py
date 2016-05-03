@@ -75,7 +75,7 @@ def expandFrontier(start, nodeDict):
         curNode = curFrontier[0]
         #expand the node
         for node in curNode.createNewNodes(nodes,global_map,75):
-            #check if the expanded nodes are unexplored and is manahttan away
+            #check if the expanded nodes are unexplored and is manahttan
             if global_map.getValFromPoint(node.point) == -1 and node.orientation%1==0:
                 #check that at least one child node of the current node is explored, then add it to the expansion
                 for tempNode in node.createNewNodes(nodes,global_map,101):

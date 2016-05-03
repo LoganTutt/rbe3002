@@ -44,18 +44,19 @@ class Node:
     # calculates the total cost for this node
     def calcCost(self, endPoint):
         # calculates the manhattan g_cost of this node
-        # g_cost of a node is equal to the g_cost of the previous node plus 1 plus a weighting based on roations
+        # g_cost of a node is equal to the g_cost of the previous node plus 1 plus a weighting based on rotations
+        # if no previous node, this is first node in the search
         if self.prevNode:
             # calculates rotation cost
             rotCost = abs(self.orientation - self.prevNode.orientation)
             if(rotCost > 2):
                 rotCost = 4 - rotCost
 
-            # calculates driving cost
-            if rotCost % 1:
-                goCost = 1
+            # calculates driving cost based on distance between this node and the next node
+            if self.orientation % 1:    # non-zero =true = decimal = diagonal mflag Corrected from previous
+                goCost = 1.414          # also changed to ori instead of rotCost
             else:
-                goCost = 1.414
+                goCost = 1
 
             self.g_cost = self.prevNode.g_cost+goCost+rotCost
         else:

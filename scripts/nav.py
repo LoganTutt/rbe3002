@@ -100,7 +100,6 @@ class Navigate:
         roll, pitch, yaw = euler_from_quaternion(q)
         return yaw
 
-
     # This function accepts a speed and a distance for the robot to move in a straight line
     def driveStraight(self):
 
@@ -301,7 +300,7 @@ def init():
 
     global navBot
 
-    navBot = Navigate(.1, .025, "hawk-i")  # pass these the resolutions that you want.
+    navBot = Navigate(.1, .025, "hawk-i")  # pass these the resolutions (meters, radians) that you want.
 
     transformer = tf.TransformListener()
 
@@ -337,4 +336,4 @@ if __name__ == '__main__':
     print "Starting navigation node"
     rospy.spin()
 
-    print "Ended node"
+    print "Ended navigation node"
