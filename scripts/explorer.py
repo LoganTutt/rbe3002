@@ -36,7 +36,7 @@ def getNextFrontier():
                 return front
             continue
         #if the node was no a frontier, expand the node and add it to the back of the queue
-        tempNodes = node.createNewNodes(nodes,tempMap,75)
+        tempNodes = node.createNewNodes(nodes,tempMap,planner.costMapExpansion)
         for n in tempNodes:
             nodes[n.key()] = n
             p = ROSPoint()
@@ -74,12 +74,12 @@ def expandFrontier(start, nodeDict):
     while curFrontier:
         curNode = curFrontier[0]
         #expand the node
-        for node in curNode.createNewNodes(nodes,global_map,75):
+        for node in curNode.createNewNodes(nodes,global_map,planner.costMapExpansion):
             #check if the expanded nodes are unexplored and is manahttan
             if global_map.getValFromPoint(node.point) == -1 and node.orientation%1==0:
                 #check that at least one child node of the current node is explored, then add it to the expansion
                 for tempNode in node.createNewNodes(nodes,global_map,101):
-                    if global_map.getValFromPoint(tempNode.point) != -1 and global_map.getValFromPoint(tempNode.point) <= 75:
+                    if global_map.getValFromPoint(tempNode.point) != -1 and global_map.getValFromPoint(tempNode.point) <= planner.costMapExpansion:
                         curFrontier.append(node)
                         nodes[node.key()] = node
                         break
@@ -96,7 +96,10 @@ def expandFrontier(start, nodeDict):
     print "len = " + str(len(fullFrontier))
     if len(fullFrontier) > .4/global_map.map_info.resolution:
         for n in fullFrontier:
-            if planner.global_map.getValFromPoint(n.point) < 60:
+            bot = nav.navBot.cur #planner.node2pose(nav.navBot.cur)
+            node = planner.node2pose(n,global_map)
+            squaredDistance = (bot.pose.position.x-node.pose.position.x)**2 + (bot.pose.position.y-node.pose.position.y)**2
+            if planner.global_map.getValFromPoint(n.point) < planner.costMapExpansion and squaredDistance >= 1:
                 globalPathServ = getGlobalPath(nav.navBot.cur.pose, planner.node2pose(n,global_map).pose)
                 globalPath = globalPathServ.path
                 if(globalPath.poses):
@@ -125,7 +128,7 @@ def expandFrontier(start, nodeDict):
 def exploreMap():
     global reachedGoal
 
-    nav.navBot.rotateCircle()
+    #nav.navBot.rotateCircle()
     rospy.sleep(5)
 
     print "starting search"
@@ -137,13 +140,8 @@ def exploreMap():
         nav.stopDrive = False
         nav.navToPose(waypoint)
         if not nav.stopDrive:
-            nav.navBot.rotateTo(-math.pi / 2)
-            rospy.sleep(1)
-            nav.navBot.rotateTo(-math.pi)
-            rospy.sleep(1)
-            nav.navBot.rotateTo(math.pi / 2)
-            rospy.sleep(1)
-            nav.navBot.rotateTo(0)
+            pass
+            #nav.navBot.rotateCircle()
         waypoint = getNextWaypoint()
 
     print "finished exploring map"
@@ -153,6 +151,7 @@ def mapCallback(data_map):
     global global_map
     global_map = Grid(data_map.info.width, data_map.info.height, data_map.data, data_map.info, data_map.header.frame_id)
     nav.stopDrive = True
+    print("New Map!")
 
 
 def run():

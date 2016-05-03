@@ -76,7 +76,7 @@ class Navigate:
         msg = Twist()
         linVel = numpy.clip(self.linVel, 0, 0.3)
         msg.linear.x = linVel
-        aVel = numpy.clip(self.angVel, -0.5, 0.5)
+        aVel = numpy.clip(self.angVel, -0.3, 0.3)
         msg.angular.z = aVel
         pub.publish(msg)
 
@@ -90,8 +90,9 @@ class Navigate:
 
         # get current pose and orientation
         self.rotateTowardPose(goal)
-
+        rospy.sleep(2)
         self.driveStraight()
+        rospy.sleep(2)
 
 
     def getCurrentAngle(self):
@@ -176,17 +177,17 @@ class Navigate:
             # initialize position
             initAng = self.getCurrentAngle()
             atGoal = False
-
+            print("Circle Start")
 
             self.linVel = 0.0
             self.angVel = 2
-            rospy.sleep(1)
+            rospy.sleep(2)
             while (not atGoal and not rospy.is_shutdown()):
                 if not abs(self.getCurrentAngle() - initAng) < self.angleThresh:
                     # keep going at given speed
 
                     self.linVel = 0.0
-                    self.angVel = 1
+                    #self.angVel = 1
                     rospy.sleep(0.1)
                 else:
                     atGoal = True

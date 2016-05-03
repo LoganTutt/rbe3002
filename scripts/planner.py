@@ -10,6 +10,7 @@ from geometry_msgs.msg import Point as ROSPoint
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from rbe3002.srv import *
 
+costMapExpansion = 85
 
 #converts a pose (Pose) to a point (Point) in the world grid
 def pose2point(pose, grid):
@@ -71,7 +72,7 @@ def aStar(start, goal, grid, wayPub):
     roll, pitch, yaw = euler_from_quaternion(quat)
     initYaw = yaw  # returns the yaw
     
-    cutoffVal = 67
+    cutoffVal = costMapExpansion
     if grid.getVal(startPoint.x, startPoint.y) > cutoffVal:
         cutoffVal = grid.getVal(startPoint.x, startPoint.y)
 
